@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التقويم النسيء | Nasi' Calendar</title>
+<style>
+  :root {
+    --bg: #f7f3ec; --panel: #ffffff; --ink: #2a2016; --muted: #7a6f5f;
+    --accent: #b5651d; --accent-soft: #f0dcc3; --line: #e4d9c6;
+    --today: #2f6f4f; --today-soft: #dcefe2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1712; --panel: #262019; --ink: #ece3d6; --muted: #a6998a;
+      --accent: #e0985a; --accent-soft: #3a2c1d; --line: #3c3226;
+      --today: #6fbf94; --today-soft: #1e3329;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  }
+  header { padding: 28px 20px 18px; text-align: center; }
+  header h1 { margin: 0 0 6px; font-size: 1.6rem; }
+  header p { margin: 0 auto; color: var(--muted); font-size: 0.92rem; max-width: 640px; }
+  main { max-width: 980px; margin: 0 auto; padding: 0 16px 60px; display: grid; gap: 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .panel h2 { margin: 0 0 14px; font-size: 1.05rem; }
+  .hint { margin: -6px 0 14px; color: var(--muted); font-size: 0.82rem; }
+
+  .month-nav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .month-nav button {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 8px; height: 36px; min-width: 36px; padding: 0 10px;
+    font-size: 1rem; cursor: pointer;
+  }
+  .month-nav button:hover { background: var(--accent-soft); }
+  .month-nav select, .month-nav input {
+    height: 36px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); font-size: 0.95rem; padding: 0 8px;
+  }
+  .month-nav input { width: 88px; }
+  #todayBtn { font-size: 0.85rem; }
+
+  table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.grid th { font-size: 0.78rem; color: var(--muted); font-weight: 500; padding: 6px 0; }
+  table.grid td {
+    border: 1px solid var(--line); height: 64px; vertical-align: top;
+    padding: 4px 6px; font-size: 0.9rem; cursor: pointer;
+  }
+  table.grid td:hover:not(.empty) { background: var(--accent-soft); }
+  table.grid td.empty { background: transparent; border-color: transparent; cursor: default; }
+  td.today { background: var(--today-soft); border-color: var(--today); }
+  td.picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .g-num { font-weight: 600; }
+  .n-num { color: var(--accent); font-size: 0.85rem; margin-top: 2px; }
+
+  table.conv { width: 100%; border-collapse: collapse; }
+  table.conv th, table.conv td { padding: 7px 6px; text-align: right; }
+  table.conv thead th { font-size: 0.78rem; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); }
+  table.conv tbody th { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+  table.conv tbody tr + tr { border-top: 1px solid var(--line); }
+  table.conv input, table.conv select {
+    width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); font-size: 0.95rem;
+  }
+  table.conv td.d { width: 82px; } table.conv td.y { width: 104px; }
+  .result { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); font-size: 1rem; min-height: 1.4em; }
+  .legend { font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: -8px; }
+  footer { text-align: center; color: var(--muted); font-size: 0.78rem; padding-bottom: 30px; }
+  @media (max-width: 640px) {
+    table.conv tbody th { font-size: 0.8rem; }
+    table.conv td.d { width: 64px; } table.conv td.y { width: 84px; }
+  }
+
+  td.grid-cell { position: relative; }
+  .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
+
+  .sun-moon-grid { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
+  @media (max-width: 640px) { .sun-moon-grid { grid-template-columns: 1fr; } }
+  .moon-big { display: flex; align-items: center; gap: 14px; }
+  .moon-big .label { font-size: 0.95rem; }
+  .moon-big .label b { display: block; font-size: 1.05rem; }
+  .moon-big .label span { color: var(--muted); font-size: 0.85rem; }
+
+  .sun-times { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 640px) { .sun-times { grid-template-columns: repeat(2, 1fr); } }
+  .sun-times .cell { text-align: center; padding: 8px 4px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+  .sun-times .cell .t { font-size: 1.05rem; font-weight: 600; }
+  .sun-times .cell .l { font-size: 0.78rem; color: var(--muted); }
+
+  .city-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .city-row select {
+    height: 34px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); font-size: 0.9rem; padding: 0 8px;
+  }
+
+  .events-list { margin-top: 16px; }
+  .events-list h3 { margin: 0 0 8px; font-size: 0.88rem; color: var(--muted); font-weight: 600; }
+  .event-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 0.9rem; border-top: 1px solid var(--line); }
+  .event-row:first-of-type { border-top: none; }
+  .event-row .ev-label { color: var(--muted); }
+  .event-row .ev-time { font-weight: 600; }
+  .event-row .ev-note { font-size: 0.78rem; color: var(--muted); }
+
+  /* FAQ */
+  #faqSearch { width: 100%; margin-bottom: 16px; }
+  .faq-cat { margin: 18px 0 8px; font-size: 0.9rem; color: var(--accent); }
+  .faq-cat:first-child { margin-top: 0; }
+  details.faq-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; background: var(--bg); }
+  details.faq-item summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details.faq-item p { margin: 10px 0 2px; font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+
+  /* grid moon-event badges */
+  .event-badge {
+    position: absolute; bottom: 2px; left: 2px; width: 14px; height: 14px;
+    border-radius: 50%; border: none; background: var(--accent); color: #fff;
+    font-size: 9px; line-height: 14px; text-align: center; padding: 0; cursor: pointer;
+    font-weight: 700; font-style: italic; font-family: Georgia, "Times New Roman", serif;
+  }
+  #moonEventPopover {
+    position: fixed; z-index: 1000; max-width: 260px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 0.85rem; box-shadow: 0 6px 20px rgba(0,0,0,0.18); display: none;
+  }
+  #moonEventPopover .ev-line { padding: 3px 0; }
+  #moonEventPopover .ev-line + .ev-line { border-top: 1px solid var(--line); }
+
+  /* ---- phone ---- */
+  #faqSearch { padding: 10px 12px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+
+  @media (max-width: 640px) {
+    header { padding: 18px 14px 12px; }
+    header h1 { font-size: 1.3rem; }
+    header p { font-size: 0.8rem; }
+    main { padding: 0 10px 40px; gap: 16px; }
+    .panel { padding: 14px 12px; border-radius: 12px; }
+
+    /* the badge is the smallest tap target on the page -- give it a real
+     * hit area via a transparent ::after rather than growing the dot itself,
+     * which would crowd a 43px-wide cell */
+    .event-badge { width: 16px; height: 16px; line-height: 16px; font-size: 10px; }
+    .event-badge::after { content: ""; position: absolute; inset: -10px; }
+
+    table.grid td { height: 66px; padding: 3px 2px; font-size: 0.82rem; }
+    .g-num { font-size: 0.9rem; }
+    .n-num { font-size: 0.68rem; line-height: 1.25; margin-top: 1px; }
+    table.grid th { font-size: 0.66rem; }
+    .moon-corner svg { width: 13px; height: 13px; }
+
+    .month-nav { gap: 6px; }
+    .month-nav select, .month-nav input, .month-nav button { height: 40px; font-size: 0.9rem; }
+    .month-nav input { width: 74px; }
+
+    /* iOS zooms the page in on any focused input under 16px -- keep these at 16 */
+    table.conv input, table.conv select { font-size: 16px; padding: 9px 8px; }
+    table.conv th, table.conv td { padding: 6px 3px; }
+    table.conv tbody th { font-size: 0.75rem; }
+    table.conv td.d { width: 56px; } table.conv td.y { width: 76px; }
+    table.conv thead th { font-size: 0.7rem; }
+
+    .sun-times { gap: 7px; }
+    .sun-times .cell { padding: 9px 3px; }
+    .sun-times .cell .t { font-size: 0.95rem; }
+    .sun-times .cell .l { font-size: 0.7rem; }
+
+    details.faq-item summary { padding: 6px 0; font-size: 0.88rem; }
+    .result { font-size: 0.9rem; padding: 10px 11px; }
+    #moonEventPopover { max-width: calc(100vw - 24px); }
+  }
+
+  #credits .credit-body { font-size: 0.88rem; line-height: 1.85; color: var(--ink); margin: 0 0 12px; }
+  #credits strong { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>التقويم النسيء</h1>
+  <p>تقويم شمسي‑قمري كان يُستخدم قبل الإسلام، يُدرج فيه شهر «النسيء» كل نحو ثلاث سنوات لمواءمة السنة القمرية مع الفصول.
+  البيانات مأخوذة من الجدول المرفق بكتاب «براءة النسيء» (وسام الدين إسحق)، ويغطي الأعوام 2000–2100م.</p>
+</header>
+<main>
+  <section class="panel">
+    <h2>عرض الشهر</h2>
+    <div class="month-nav">
+      <button id="prevMonth" title="الشهر السابق">‹</button>
+      <select id="navMonth"></select>
+      <input type="number" id="navYear" min="2000" max="2100" step="1">
+      <button id="todayBtn">اليوم</button>
+      <button id="nextMonth" title="الشهر التالي">›</button>
+    </div>
+    <div class="legend">الرقم الكبير: التاريخ الميلادي — الرقم الملوّن: يوم شهر النسيء · اضغط أي يوم لتحويله</div>
+    <table class="grid" id="grid">
+      <thead><tr id="weekdayRow"></tr></thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>تحويل التواريخ</h2>
+    <p class="hint">عدّل أي صف وتتحدّث الصفوف الأخرى تلقائياً · الصيغة: يوم / شهر / سنة</p>
+    <table class="conv">
+      <thead><tr><th>التقويم</th><th>اليوم</th><th>الشهر</th><th>السنة</th></tr></thead>
+      <tbody>
+        <tr>
+          <th>ميلادي</th>
+          <td class="d"><input type="number" id="gD" min="1" max="31"></td>
+          <td><select id="gM"></select></td>
+          <td class="y"><input type="number" id="gY" min="2000" max="2100"></td>
+        </tr>
+        <tr>
+          <th>هجري رسمي</th>
+          <td class="d"><input type="number" id="hD" min="1" max="30"></td>
+          <td><select id="hM"></select></td>
+          <td class="y"><input type="number" id="hY"></td>
+        </tr>
+        <tr>
+          <th>نسيء</th>
+          <td class="d"><input type="number" id="nD" min="1" max="30"></td>
+          <td><select id="nM"></select></td>
+          <td class="y"><input type="number" id="nY"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="result" id="convResult"></div>
+  </section>
+  <section class="panel">
+    <h2>القمر والشمس</h2>
+    <div class="city-row">
+      <label for="citySel" style="color:var(--muted);font-size:0.85rem;">المدينة:</label>
+      <select id="citySel">
+        <option value="cairo">القاهرة</option>
+        <option value="barcelona">برشلونة</option>
+      </select>
+    </div>
+    <div class="sun-moon-grid">
+      <div class="moon-big" id="moonBig"></div>
+      <div class="sun-times" id="sunTimes"></div>
+    </div>
+    <div class="events-list">
+      <h3>أحداث الدورة القمرية الحالية</h3>
+      <div id="moonEvents"></div>
+    </div>
+    <p class="hint" style="margin-top:12px;margin-bottom:0;">
+      الفجر والعشاء بحسب الهيئة المصرية العامة للمساحة (19.5°/17.5°) · المغرب = الغروب فلكياً في كل الأعراف تقريباً ·
+      إضاءة القمر وعمر الدورة محسوبان فلكياً (نفس طريقة Meeus المستخدمة سابقاً في التحقق من التقويم)، وهما مستقلان عن تقويم النسيء نفسه.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>أسئلة شائعة</h2>
+    <input type="search" id="faqSearch" placeholder="ابحث في الأسئلة، مثال: النسيء، رمضان، ناسا...">
+    <div id="faqList"></div>
+  </section>
+
+  <section class="panel" id="credits">
+    <h2>المصدر والاعتماد</h2>
+    <p class="credit-body">
+      البيانات اليومية لهذا التقويم (2000–2100م) مستخرجة من الجدول الملحق بكتاب
+      <strong>«براءة النسيء»</strong> للأستاذ <strong>وسام الدين إسحق</strong>،
+      وهو صاحب العمل الأصلي في إعادة بناء هذا التقويم وتوثيقه. الفضل في المنهج
+      وفي الجدول نفسه يعود إليه.
+    </p>
+    <p class="credit-body">
+      هذا الموقع إعادة بناء برمجية مستقلة لذلك الجدول، وليس نسخة رسمية منه ولا
+      منتجاً معتمداً من المؤلف ولا مرتبطاً به. أي خطأ هنا هو خطأ في هذا الاستخراج،
+      لا في الكتاب.
+    </p>
+    <p class="credit-body">
+      أما الحسابات الفلكية — أوقات الفجر والشروق والغروب والعشاء، وأطوار القمر،
+      ولحظات المحاق والبدر — فمستقلة تماماً عن الكتاب، ومحسوبة بخوارزميات
+      Meeus و NOAA. وبيانات الخسوف القمري مأخوذة من كتالوج ناسا
+      (Espenak &amp; Meeus, NASA/TP-2009-214173).
+    </p>
+    <p class="credit-body">
+      وهذا مشروع بحثي وتقني للتحقق الفلكي، وليس مرجعاً شرعياً — التقويم الهجري
+      الرسمي هو المعتمد دينياً وعملياً.
+    </p>
+    <p class="hint" style="margin-bottom:0;">
+      لمن أراد الرجوع إلى العمل الأصلي كاملاً بمنهجه وأدلته، فالكتاب نفسه هو المرجع.
+    </p>
+  </section>
+
+</main>
+<div id="moonEventPopover"></div>
+<footer>
+  بيانات 2000–2100م · مبني على «براءة النسيء» لوسام الدين إسحق · التقويم الهجري الرسمي بالحساب الجدولي
+</footer>
+
+<script src="nasi-months-data.js?v=f251fdb7"></script>
+<script src="nasi-calendar.js?v=bedb056b"></script>
+<script src="hijri.js?v=381a224a"></script>
+<script src="moon-phases-data.js?v=2c2f8b6e"></script>
+<script src="moon.js?v=11a84b9f"></script>
+<script src="solar.js?v=013409cd"></script>
+<script src="moon-events.js?v=0baa5099"></script>
+<script src="eclipses-data.js?v=152d4b3a"></script>
+<script src="faq-data.js?v=9cb0d094"></script>
+<script src="faq.js?v=4e9d4c5c"></script>
+<script>
+const WEEKDAYS_AR = ["أحد","اثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت"];
+const GREG_MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const NASI_ORDER = ["صفر الأول","صفر الثاني","ربيع الأول","ربيع الثاني","جمادى الأولى","جمادى الثانية",
+                    "رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة","نسيء"];
+const MIN_ISO = "2000-01-01", MAX_ISO = "2100-12-31";
+const $ = (id) => document.getElementById(id);
+const pad = (n, w) => String(n).padStart(w, "0");
+const iso = (y, m, d) => `${pad(y,4)}-${pad(m,2)}-${pad(d,2)}`;
+const ddmmyyyy = (s) => `${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`;
+const todayISO = () => { const d = new Date(); return iso(d.getFullYear(), d.getMonth()+1, d.getDate()); };
+
+let viewYear, viewMonth;   // Gregorian, viewMonth 0-11
+let pickedISO = null;
+
+/* ---------- month grid ---------- */
+function renderWeekdayHeader() {
+  const row = $("weekdayRow"); row.innerHTML = "";
+  for (const w of WEEKDAYS_AR) { const th = document.createElement("th"); th.textContent = w; row.appendChild(th); }
+}
+
+function renderGrid() {
+  $("navMonth").value = viewMonth;
+  $("navYear").value = viewYear;
+  const monthEvents = computeMonthMoonEvents(viewYear, viewMonth, selectedCity);
+  const first = new Date(Date.UTC(viewYear, viewMonth, 1));
+  const startWeekday = first.getUTCDay();
+  const daysInMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
+  const today = todayISO();
+
+  const body = $("gridBody"); body.innerHTML = "";
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  for (let r = 0; r < cells.length / 7; r++) {
+    const tr = document.createElement("tr");
+    for (let c = 0; c < 7; c++) {
+      const day = cells[r * 7 + c];
+      const td = document.createElement("td"); td.classList.add("grid-cell");
+      if (day === null) { td.className = "empty"; }
+      else {
+        const s = iso(viewYear, viewMonth + 1, day);
+        if (s === today) td.classList.add("today");
+        if (s === pickedISO) td.classList.add("picked");
+        const n = gregorianToNasi(s);
+        const mp = moonPhaseForISO(s);
+        const moonHTML = mp ? `<div class="moon-corner">${moonIconSVG(mp.illum, mp.waxing, 16, "#000000", "#FFD60A")}</div>` : "";
+        const dayEvents = monthEvents[s];
+        const badgeHTML = (dayEvents && dayEvents.length)
+          ? `<button type="button" class="event-badge" title="اضغط لعرض التفاصيل">i</button>` : "";
+        td.innerHTML = moonHTML + badgeHTML + `<div class="g-num">${day}</div>` +
+          (n ? `<div class="n-num">${n.nd} ${n.nm}</div>` : `<div class="n-num">—</div>`);
+        if (dayEvents && dayEvents.length) {
+          td.querySelector(".event-badge").addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            showEventPopover(ev.currentTarget, dayEvents);
+          });
+        }
+        td.addEventListener("click", () => setDate(s));   // click a day to convert it
+      }
+      tr.appendChild(td);
+    }
+    body.appendChild(tr);
+  }
+}
+
+function gotoMonth(y, m) {
+  if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+  viewYear = Math.min(2100, Math.max(2000, y)); viewMonth = m;
+  renderGrid();
+}
+
+/* ---------- converter: one date, three calendars ---------- */
+function fillSelect(el, names, valueFromIndex) {
+  el.innerHTML = "";
+  names.forEach((name, i) => {
+    const o = document.createElement("option");
+    o.value = valueFromIndex ? valueFromIndex(i, name) : String(i);
+    o.textContent = name;
+    el.appendChild(o);
+  });
+}
+
+/* Repaint every row from a single ISO date. `skip` leaves the row the user is
+ * typing in alone, so the caret does not jump while they edit it. */
+function renderRows(s, skip) {
+  pickedISO = s;
+  const box = $("convResult");
+  if (s < MIN_ISO || s > MAX_ISO) {
+    box.textContent = `خارج النطاق المتاح (${ddmmyyyy(MIN_ISO)} – ${ddmmyyyy(MAX_ISO)})`;
+    return;
+  }
+  if (skip !== "g") { $("gD").value = +s.slice(8,10); $("gM").value = +s.slice(5,7) - 1; $("gY").value = +s.slice(0,4); }
+  const h = gregorianToHijri(s);
+  if (skip !== "h") { $("hD").value = h.d; $("hM").value = h.m - 1; $("hY").value = h.y; }
+  const n = gregorianToNasi(s);
+  if (skip !== "n" && n) { $("nD").value = n.nd; $("nM").value = n.nm; $("nY").value = n.ny; }
+
+  const wd = WEEKDAYS_AR[new Date(s + "T00:00:00Z").getUTCDay()];
+  box.textContent = n
+    ? `${wd} · ${ddmmyyyy(s)} م  ·  ${h.d} ${HIJRI_MONTHS[h.m-1]} ${h.y} هـ  ·  ${n.nd} ${n.nm} ${n.ny} نسيء`
+    : `${wd} · ${ddmmyyyy(s)} م  ·  ${h.d} ${HIJRI_MONTHS[h.m-1]} ${h.y} هـ`;
+}
+
+function setDate(s, skip) {
+  renderRows(s, skip);
+  renderSunMoon(s);
+  renderMoonEvents(s);
+  const y = +s.slice(0,4), m = +s.slice(5,7) - 1;
+  if (y !== viewYear || m !== viewMonth) { viewYear = y; viewMonth = m; }
+  renderGrid();
+}
+
+function fromGregorian() {
+  const s = iso(+$("gY").value, +$("gM").value + 1, +$("gD").value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) setDate(s, "g");
+}
+function fromHijri() {
+  const s = hijriToGregorian(+$("hY").value, +$("hM").value + 1, +$("hD").value);
+  setDate(s, "h");
+}
+function fromNasi() {
+  const s = nasiToGregorian(+$("nY").value, $("nM").value, +$("nD").value);
+  if (s) setDate(s, "n"); else $("convResult").textContent = "تاريخ غير موجود في هذا النطاق";
+}
+
+
+
+/* ---------- grid event popover ---------- */
+const ECLIPSE_LABEL = { T: "خسوف كلي", P: "خسوف جزئي", N: "خسوف شبه ظلي" };
+
+let popoverOpenFor = null;   // tracks the actual element (dataset can only hold strings)
+
+function showEventPopover(anchorEl, dayEvents) {
+  const pop = $("moonEventPopover");
+  if (popoverOpenFor === anchorEl) { pop.style.display = "none"; popoverOpenFor = null; return; }
+
+  const city = CITIES[selectedCity];
+  const lines = dayEvents.map(ev => {
+    const time = fmtLocal(ev.time, city.tz);
+    if (ev.type === "new") return `بداية دورة قمرية جديدة – الساعة ${time}`;
+    if (ev.type === "full") return `اكتمال القمر (بدر) – الساعة ${time}`;
+    const vis = likelyVisibleAt(ev.time, selectedCity);
+    const visTxt = vis === null ? "" : (vis ? ` · مرئي على الأرجح من ${city.label}` : ` · غير مرئي من ${city.label} (نهاراً هناك)`);
+    return `${ECLIPSE_LABEL[ev.kind]} – الساعة ${time}${visTxt}`;
+  });
+  pop.innerHTML = lines.map(l => `<div class="ev-line">${l}</div>`).join("");
+  pop.style.display = "block";
+
+  // measure AFTER setting content -- the width is now viewport-relative on
+  // phones (max-width: calc(100vw - 24px)), so a hard-coded constant here
+  // pushed the panel flush against the screen edge on a 375px viewport.
+  const r = anchorEl.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  pop.style.top = `${Math.max(8, Math.min(r.bottom + 6, window.innerHeight - ph - 8))}px`;
+  pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - pw - 8))}px`;
+  popoverOpenFor = anchorEl;
+}
+document.addEventListener("click", (e) => {
+  const pop = $("moonEventPopover");
+  if (pop.style.display === "block" && !pop.contains(e.target)) { pop.style.display = "none"; popoverOpenFor = null; }
+});
+window.addEventListener("scroll", () => {   // fixed-position popover would otherwise stay glued mid-air while the page scrolls under it
+  const pop = $("moonEventPopover");
+  if (pop.style.display === "block") { pop.style.display = "none"; popoverOpenFor = null; }
+}, true);
+
+/* ---------- moon + sun panel ---------- */
+let selectedCity = "cairo";
+
+function renderSunMoon(s) {
+  const mp = moonPhaseForISO(s);
+  const moonBig = $("moonBig");
+  if (mp) {
+    const name = moonPhaseName(mp.illum, mp.waxing);
+    moonBig.innerHTML = moonIconSVG(mp.illum, mp.waxing, 64, "#000000", "#FFD60A") +
+      `<div class="label"><b>${name}</b><span>إضاءة ${mp.illum}٪ · يوم ${mp.age.toFixed(1)} من الدورة القمرية</span></div>`;
+  } else {
+    moonBig.innerHTML = "";
+  }
+
+  const city = CITIES[selectedCity];
+  const t = sunTimes(s, selectedCity);
+  const rows = [
+    ["fajr", "الفجر"], ["sunrise", "الشروق"], ["sunset", "الغروب / المغرب"], ["isha", "العشاء"],
+  ];
+  $("sunTimes").innerHTML = rows.map(([key, label]) =>
+    `<div class="cell"><div class="t">${fmtLocal(t[key], city.tz)}</div><div class="l">${label}</div></div>`
+  ).join("");
+}
+
+
+/* ---------- lunar cycle events (new/full moon instants + eclipses) ---------- */
+function eclipsesBetween(startDate, endDate) {
+  const s = startDate.getTime(), e = endDate.getTime();
+  return LUNAR_ECLIPSES
+    .map(ev => ({ ...ev, date: new Date(ev.t) }))
+    .filter(ev => ev.date.getTime() >= s && ev.date.getTime() <= e);
+}
+const ECLIPSE_NAME = { T: "خسوف كلي", P: "خسوف جزئي", N: "خسوف شبه ظلي (خفيف)" };
+
+/* Necessary-but-not-sufficient visibility check: is it night at the city when
+ * the eclipse peaks? (Sun below the horizon.) At Cairo/Barcelona's latitudes
+ * the moon is essentially always up whenever it's fully dark, so this is a
+ * good proxy -- it is NOT a true moon-altitude calculation. */
+function likelyVisibleAt(date, cityKey) {
+  const city = CITIES[cityKey];
+  const localISO = new Intl.DateTimeFormat("en-CA", { timeZone: city.tz }).format(date); // YYYY-MM-DD
+  const t = sunTimes(localISO, cityKey);
+  if (!t.sunrise || !t.sunset) return null;             // polar edge case, not our cities
+  return date < t.sunrise || date > t.sunset;
+}
+
+function renderMoonEvents(s) {
+  const ev = moonEventsForDate(s);
+  const city = CITIES[selectedCity];
+  const rows = [
+    ["بداية الدورة الحالية", ev.cycleStart, ""],
+    ["اكتمال القمر (البدر)", ev.fullMoon, ""],
+    ["بداية الدورة القادمة", ev.cycleEnd, ""],
+  ].map(([label, d, note]) =>
+    `<div class="event-row"><span class="ev-label">${label}</span>` +
+    `<span class="ev-time">${fmtLocalDateTime(d, city.tz)}</span></div>`
+  );
+
+  const eclipses = eclipsesBetween(ev.cycleStart, ev.cycleEnd);
+  for (const eclipse of eclipses) {
+    const vis = likelyVisibleAt(eclipse.date, selectedCity);
+    const visNote = vis === null ? "" : (vis ? `مرئي على الأرجح من ${city.label} (ليلاً هناك)` : `غير مرئي من ${city.label} (نهاراً هناك)`);
+    rows.push(
+      `<div class="event-row"><span class="ev-label">${ECLIPSE_NAME[eclipse.k]}</span>` +
+      `<span class="ev-time">${fmtLocalDateTime(eclipse.date, city.tz)}</span></div>` +
+      (visNote ? `<div class="event-row" style="border-top:none;padding-top:0;"><span class="ev-note">${visNote}</span></div>` : "")
+    );
+  }
+
+  $("moonEvents").innerHTML = rows.join("");
+}
+
+/* ---------- init ---------- */
+(function init() {
+  renderWeekdayHeader();
+  fillSelect($("navMonth"), GREG_MONTHS_AR);
+  fillSelect($("gM"), GREG_MONTHS_AR);
+  fillSelect($("hM"), HIJRI_MONTHS);
+  fillSelect($("nM"), NASI_ORDER.filter(n => NASI_MONTHS.some(m => m.nm === n)), (i, name) => name);
+
+  $("prevMonth").addEventListener("click", () => gotoMonth(viewYear, viewMonth - 1));
+  $("nextMonth").addEventListener("click", () => gotoMonth(viewYear, viewMonth + 1));
+  $("navMonth").addEventListener("change", () => gotoMonth(viewYear, +$("navMonth").value));
+  $("navYear").addEventListener("change", () => gotoMonth(+$("navYear").value, viewMonth));
+  $("todayBtn").addEventListener("click", () => setDate(todayISO()));
+  $("citySel").value = selectedCity;
+  $("citySel").addEventListener("change", () => { selectedCity = $("citySel").value; renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); });
+
+  for (const id of ["gD","gY"]) $(id).addEventListener("input", fromGregorian);
+  $("gM").addEventListener("change", fromGregorian);
+  for (const id of ["hD","hY"]) $(id).addEventListener("input", fromHijri);
+  $("hM").addEventListener("change", fromHijri);
+  for (const id of ["nD","nY"]) $(id).addEventListener("input", fromNasi);
+  $("nM").addEventListener("change", fromNasi);
+
+  renderFAQ("");
+  $("faqSearch").addEventListener("input", () => renderFAQ($("faqSearch").value));
+
+  let start = todayISO();
+  if (start < MIN_ISO) start = MIN_ISO;
+  if (start > MAX_ISO) start = MAX_ISO;
+  viewYear = +start.slice(0,4); viewMonth = +start.slice(5,7) - 1;
+  setDate(start);
+})();
+</script>
+</body>
+</html>

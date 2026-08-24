@@ -1,0 +1,56 @@
+1. MONTH START vs. ASTRONOMICAL NEW MOON
+   month starts tested: 1250
+     start = new moon +0 day(s):   206  ( 16.5%)
+     start = new moon +1 day(s):   769  ( 61.5%)
+     start = new moon +2 day(s):   274  ( 21.9%)
+     start = new moon +3 day(s):     1  (  0.1%)
+   |offset| > 2 days: 1 [('2041-06-01', 'جمادى الأولى', 3)]
+
+2. FULL MOON vs. DAY OF MONTH  (book p.15 predicts 14 or 15)
+   full moons tested: 1249
+     day 13:     5 (  0.4%) 
+     day 14:   419 ( 33.5%) ################################
+     day 15:   762 ( 61.0%) ############################################################
+     day 16:    63 (  5.0%) ####
+   on day 14 or 15: 1181/1249 = 94.6%
+   on day 13-16   : 1249/1249 = 100.0%
+
+3. SOLAR LOCK -- Gregorian date on which each Hijri year opens
+   years tested: 101
+   earliest opening: 2010-01-16  latest opening: 2002-02-13
+   spread in day-of-year: 28 days
+   (a pure lunar calendar drifts ~11 days/yr = ~1100 days over this range,
+    i.e. it would wander through every season several times over)
+   sample openings:
+     1379: 2000-02-06  (day 37 of the Gregorian year)
+     1380: 2001-01-25  (day 25 of the Gregorian year)
+     1381: 2002-02-13  (day 44 of the Gregorian year)
+     1429: 2050-01-23  (day 23 of the Gregorian year)
+     1430: 2051-02-11  (day 42 of the Gregorian year)
+     1477: 2098-02-02  (day 33 of the Gregorian year)
+     1478: 2099-01-22  (day 22 of the Gregorian year)
+     1479: 2100-02-10  (day 41 of the Gregorian year)
+
+4. NASA 5-MILLENNIUM LUNAR ECLIPSE CATALOG (Espenak & Meeus, NASA/TP-2009-214173)
+   eclipses in range: 230  (of which umbral/visible: 144)
+   ALL eclipses, by day of our month:
+     day 14:   61 ( 26.5%)
+     day 15:  168 ( 73.0%)
+     day 16:    1 (  0.4%)
+   UMBRAL only (penumbral ones are invisible to the naked eye):
+     day 14:   33 ( 22.9%)
+     day 15:  110 ( 76.4%)
+     day 16:    1 (  0.7%)
+   on day 14 or 15: 229/230 = 99.6%
+   on day 13-16   : 230/230 = 100.0%
+
+5. CONSTANTS THE TABLE IMPLIES (nothing here is fitted -- these fall out)
+   mean month length over 1249 months : 29.530024 days
+   true mean synodic month (Meeus)           : 29.530589 days
+   error                                     : +48.8 seconds/month
+   mean year length over 100 years      : 365.290000 days
+   mean tropical year (Meeus, J2000)         : 365.242190 days
+   error                                     : +68.8 minutes/year
+   -> drift over the full 101-year table     : +4.78 days
+   for contrast, a pure 12-month lunar year  : 354.367 days  (-10.9 days/yr, ~1098 days over the table)
+   Nasi' months inserted: 37 in 101 years  = 0.3663/yr  (Metonic ideal 7/19 = 0.3684)

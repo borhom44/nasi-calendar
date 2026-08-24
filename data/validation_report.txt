@@ -1,0 +1,21 @@
+range: 2000-01-01 .. 2100-12-31
+records: 36890  expected (no gaps): 36890
+missing gregorian dates: 0 []
+
+month runs: 1251
+  named directly by the chart's own label: 1250
+  inferred from neighbours: 1 ['2000-01']
+  labels that matched no run: 0 []
+CYCLE CONFLICTS: 0
+YEAR-LABEL CONFLICTS: 0
+
+month runs with length not in {29,30}: 2 [((1378, 'ذو القعدة'), 6), ((1479, 'ذو الحجة'), 1)]
+Nasi' insertions: 37
+
+spot-checks read off the source chart by hand:
+  2025-09-23  want رمضان 1        got رمضان 1 (ny=1404)  OK
+  2026-10-12  want رمضان 1        got رمضان 1 (ny=1405)  OK
+  2026-09-13  want نسيء 1         got نسيء 1 (ny=1405)  OK
+  2030-09-27  want رمضان 1        got رمضان 1 (ny=1409)  OK
+  2030-01-05  want ذو الحجة 1     got ذو الحجة 1 (ny=1408)  OK
+  2030-02-03  want صفر الأول 1    got صفر الأول 1 (ny=1409)  OK

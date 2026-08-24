@@ -1,0 +1,38 @@
+INTERCALATION RULE: 81 rolling 19-year windows, insertions per window min=7 max=7
+   -> strictly Metonic; r = 7/19 exactly
+
+INSERTED-LUNATION COUNT K, measured on many independent dates
+  (K must come out the same shifted story from every sample; A must be constant)
+
+   nasi-date            official Hijri      K     implied A
+   2001-01-25  y1380   10/1421       501      20.1
+   2013-02-11  y1392    3/1434       506      18.6
+   2025-01-30  y1404    7/1446       510      19.7
+   2037-01-17  y1416   11/1458       514      20.9
+   2061-01-22  y1440    9/1483       524      17.7
+   2073-02-08  y1452    1/1496       528      18.9
+   2085-01-26  y1464    5/1508       532      20.0
+   2097-02-12  y1476   10/1520       537      18.4
+
+   samples: 9   A range: 17.7 .. 20.9   spread 3.1 yr   mean 19.3
+   The residual spread is the Metonic sawtooth: within a 19-year cycle the
+   running insertion count leads or lags the smooth rate by up to half an
+   insertion, and one insertion is worth 1/r = 2.7 years of A.
+
+ABOLITION YEAR
+   best estimate: Nasi' year 19.3 AH  (1 Muharram 19 AH = approx 640-01-02 CE)
+   range across samples: 17-21 AH (~638-641 CE)
+
+   For reference, using 37/100 instead of the true 7/19 -- a 0.4% rate
+   error -- would have given 24.6 AH. That is how sharp the leverage is.
+
+SENSITIVITY
+   dA/dr = K/r^2 = 3956 years per unit rate
+   -> a 1% error in the intercalation rate moves A by 14.6 years
+   an epoch misalignment of +-1 lunation moves A by 2.7 years
+
+ASSUMPTIONS (both load-bearing)
+   1. Year 1 of this calendar and year 1 AH are the same lunation.
+   2. The intercalation rate has been constant since abolition.
+   Neither is verifiable from the 2000-2100 table. The book's own
+   513-2100 charts would test both directly; they are in neither PDF here.

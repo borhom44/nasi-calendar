@@ -1,0 +1,41 @@
+SANITY CHECK -- tabular Hijri for a few known dates
+   2000-01-01: official Hijri 24/09/1420   |   Nasi' calendar 24 ذو القعدة 1378
+   2026-08-20: official Hijri  6/03/1448   |   Nasi' calendar  7 شعبان 1405
+   2026-10-12: official Hijri 29/04/1448   |   Nasi' calendar  1 رمضان 1405
+   2100-12-31: official Hijri 29/10/1524   |   Nasi' calendar  1 ذو الحجة 1479
+
+1. YEAR-NUMBER GAP (official Hijri year minus Nasi' year), measured
+   2000 CE: official 1421  ours 1379  gap 42
+   2001 CE: official 1422  ours 1380  gap 42
+   2002 CE: official 1423  ours 1381  gap 42
+   2050 CE: official 1472  ours 1429  gap 43
+   2051 CE: official 1473  ours 1430  gap 43
+   2098 CE: official 1522  ours 1477  gap 45
+   2099 CE: official 1523  ours 1478  gap 45
+   2100 CE: official 1524  ours 1479  gap 45
+   gap grew 42 -> 45 (= 3) across 100 Nasi' years
+   measured rate: 0.030000 extra official-years per Nasi' year
+   theoretical rate from 37 insertions / 101 yrs: 0.030528
+
+2. EXTRAPOLATING THE GAP BACK TO ZERO
+   using measured rate (0.030000):
+     1500.0 Nasi' years before 2100 CE
+     -> separation at Nasi' year -21.0, i.e. about 600 CE
+   using theoretical rate (0.030528):
+     1474.1 Nasi' years before 2100 CE
+     -> separation at Nasi' year +4.9, i.e. about 626 CE
+
+3. WHAT THAT MEANS
+   Both calendars are anchored to the same epoch (year 1 = 622 CE):
+     official Hijri year 1 -> 622 CE (lunar years, ~354.37 d)
+     Nasi' year 1          -> 622 CE (solar-locked years, ~365.29 d)
+   They share an epoch but count differently, so the year NUMBERS
+   separate essentially at the epoch itself -- not centuries later.
+
+CAVEAT -- this is extrapolation, not data.
+   The source table covers 2000-2100 CE only. Everything above assumes the
+   intercalation rate held steady for ~1400 years. The book states it built
+   the calendar from 513 CE, and describes longer correction cycles, so the
+   real historical rate is very unlikely to be exactly constant.
+   The book's own 513-2000 charts would answer this from data; they are in
+   neither PDF supplied here.

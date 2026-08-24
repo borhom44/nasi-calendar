@@ -1,0 +1,15 @@
+# Large intermediates, regenerable and not needed to run the site.
+#
+# raw_spans.json in particular is a machine-readable transcription of the
+# source book's appendix table -- the derived calendar (nasi_days.json) is
+# what this project publishes, with attribution. Regenerate it locally with
+# scripts/extract_spans.py against your own copy of the PDF.
+data/raw_spans.json
+data/label_tokens.json
+
+# NASA's catalog is public domain but 1.4MB and trivially re-fetched:
+#   curl -o data/nasa_5MKLE_catalog.txt https://eclipse.gsfc.nasa.gov/5MCLE/5MKLEcatalog.txt
+data/nasa_5MKLE_catalog.txt
+
+__pycache__/
+*.pyc
