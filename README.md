@@ -40,14 +40,14 @@ ground truth rather than re-deriving the rule.
 
 ## Live site
 
-**https://borhom44.github.io/nasi-calendar/**
+**https://nasi.ibrahimabdelrahim.cloud/**
 
 Subscribe-by-URL feeds (Google Calendar → Add calendar → From URL). Pick one
 city, not both:
 
 ```
-https://borhom44.github.io/nasi-calendar/data/nasi-cairo-full-5y.ics
-https://borhom44.github.io/nasi-calendar/data/nasi-barcelona-full-5y.ics
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics
 ```
 
 Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
@@ -60,6 +60,19 @@ Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
 
 Subscribing has no event-count ceiling and auto-updates; importing copies the
 events in once and is capped. When in doubt, subscribe.
+
+### Why a custom domain
+
+The site is served by GitHub Pages but addressed at `nasi.ibrahimabdelrahim.cloud`
+(Hostinger DNS, `CNAME nasi -> borhom44.github.io`). This is the one decision here
+that cannot be walked back: an `.ics` URL, once it is sitting in someone's calendar
+subscription, can never be redirected — GitHub Pages is static and cannot issue a
+301 — and the publisher has no way to find out who subscribed or to contact them.
+A URL under a domain we control can be re-pointed at any host forever. A
+`github.io` path is only as durable as that repository's name.
+
+The old `borhom44.github.io/nasi-calendar/*` paths still 301 to the new domain,
+so nothing published before the move is broken.
 
 
 ## Month names (deliberate departure from the standard Hijri calendar)
