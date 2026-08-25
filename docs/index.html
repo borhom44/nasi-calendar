@@ -210,7 +210,10 @@
     table.conv thead th { font-size: 0.7rem; }
 
     #subscribe .sub-row { flex-wrap: wrap; }
-    #subscribe .sub-url { order: 3; width: 100%; font-size: 0.7rem; }
+    /* flex-basis, not width: `flex: 1` already sets flex-basis:0, which wins
+     * over width:100% -- so the URL kept sharing the line and wrapped into a
+     * 131px column four lines deep. 100% basis forces it onto its own row. */
+    #subscribe .sub-url { order: 3; flex: 1 0 100%; font-size: 0.7rem; }
     #subscribe .sub-copy { margin-inline-start: auto; }
     #subscribe ol.sub-steps { font-size: 0.86rem; }
 
