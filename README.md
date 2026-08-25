@@ -42,15 +42,24 @@ ground truth rather than re-deriving the rule.
 
 **https://borhom44.github.io/nasi-calendar/**
 
-Subscribe-by-URL feeds (Google Calendar → Add calendar → From URL):
+Subscribe-by-URL feeds (Google Calendar → Add calendar → From URL). Pick one
+city, not both:
 
 ```
-https://borhom44.github.io/nasi-calendar/data/nasi-cairo-full-100y.ics
-https://borhom44.github.io/nasi-calendar/data/nasi-barcelona-full-100y.ics
+https://borhom44.github.io/nasi-calendar/data/nasi-cairo-full-5y.ics
+https://borhom44.github.io/nasi-calendar/data/nasi-barcelona-full-5y.ics
 ```
 
-The `-1y` variants are small enough for Google's manual **Import** instead,
-if you'd rather not subscribe.
+Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
+
+| Span | Range | Events | Size | Import? | Subscribe? |
+|------|-------|-------:|-----:|---------|------------|
+| `-1y`   | rolling ±1 yr | 786    | 250 KB | yes | yes |
+| `-5y`   | 2026–2030     | 1,962  | 631 KB | probably | yes |
+| `-100y` | 2000–2100     | 39,619 | 13 MB  | no  | yes |
+
+Subscribing has no event-count ceiling and auto-updates; importing copies the
+events in once and is capped. When in doubt, subscribe.
 
 
 ## Month names (deliberate departure from the standard Hijri calendar)
@@ -104,10 +113,10 @@ documented, intended placement, not an extraction error.
 - `data/nasi_days.json` — every day in range, `{g: "YYYY-MM-DD", ny, nm, nd}`.
 - `data/nasi_months.json` — the same data compressed to month boundaries
   (~1,250 rows instead of ~36,890) — this is what the web page actually uses.
-- `docs/data/nasi-{cairo,barcelona}-full-1y.ics` — enriched Google Calendar feeds
-  (Nasi' dates + sun times + moon/eclipse events), sized to fit Google's
-  manual-import cap. The `-100y` variants cover the full range for the
-  subscribe-by-URL path.
+- `docs/data/nasi-{cairo,barcelona}-full-{1y,5y,100y}.ics` — enriched Google
+  Calendar feeds (Nasi' dates + sun times + moon/eclipse events) at three spans.
+  `-1y` fits Google's manual-import cap; `-5y` (2026–2030) is the recommended
+  default; `-100y` covers the full range via subscribe-by-URL.
 - `docs/index.html` — the web app (also what GitHub Pages serves): a month-grid view (each
   Gregorian day shows its Nasi' date underneath, the same convention the
   source table uses) plus a two-way date converter.
@@ -156,6 +165,11 @@ Google Calendar's manual **Import** screen has an undocumented soft cap around
   events: 731 daily Nasi' dates carrying that city's fajr/sunrise/sunset/isha
   and the moon's illumination in the description, plus 49 exact new/full-moon
   instants and 6 real lunar eclipses as timed events.
+- **Five years** (recommended): `docs/data/nasi-{city}-full-5y.ics` covers
+  2026–2030 — 1,826 daily entries, 124 new/full-moon instants and 12 lunar
+  eclipses, 1,962 events in 631 KB. Comfortably under Google's 1 MB import
+  file-size limit, though the event count sits above the folklore ~1,000 cap,
+  so subscribe-by-URL is the reliable path.
 - **Full 2000–2100 range**: use `docs/data/nasi-{city}-full-100y.ics` (39,619
   events) via "Add calendar → From URL". That path has no event-count ceiling
   but needs a public HTTPS URL.
