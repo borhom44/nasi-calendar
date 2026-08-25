@@ -37,6 +37,26 @@ CITIES = {
     "barcelona": {"label": "برشلونة", "lat": 41.3874, "lon": 2.1686,  "tz": "Europe/Madrid"},
 }
 
+# Unicode has all eight phases, which is the closest an .ics can get to the
+# app's SVG moon. The thresholds are copied from docs/moon.js MOON_PHASE_NAMES
+# deliberately -- if they ever drift apart, the calendar and the app would
+# disagree about what phase the same day is in.
+SYNODIC_MEAN = 29.530589
+
+
+def moon_emoji(illum, age):
+    waxing = age < SYNODIC_MEAN / 2
+    if illum < 6:
+        return "🌑"                                    # محاق / new
+    if illum < 44:
+        return "🌒" if waxing else "🌘"        # هلال
+    if illum < 56:
+        return "🌓" if waxing else "🌗"        # تربيع
+    if illum < 94:
+        return "🌔" if waxing else "🌖"        # أحدب
+    return "🌕"                                        # بدر / full
+
+
 ECLIPSE_AR = {"T": "خسوف كلي", "P": "خسوف جزئي", "N": "خسوف شبه ظلي"}
 
 
@@ -127,6 +147,7 @@ def build(days, moon, eclipses, city_key, start, end):
         t = sun_times(gdate, city["lat"], city["lon"], city["tz"])
         idx = (gdate - epoch).days
         illum = moon[idx][0] if 0 <= idx < len(moon) else None
+        age = moon[idx][1] if 0 <= idx < len(moon) else None
 
         desc_parts = [
             f"فجر {hhmm(t['fajr'])} · شروق {hhmm(t['sunrise'])} · "
@@ -135,13 +156,21 @@ def build(days, moon, eclipses, city_key, start, end):
         if illum is not None:
             desc_parts.append(f"إضاءة القمر: {illum}٪")
 
+        # sunrise/sunset ride in the TITLE because Google's grid only renders the
+        # title -- fajr and isha stay in the description, since all four would
+        # overflow the row. Each time keeps its Arabic label so the bidi
+        # reordering of LTR digits inside RTL text can never make them ambiguous.
+        icon = moon_emoji(illum, age) + " " if illum is not None else ""
+        summary = (f"{icon}{d['nd']} {d['nm']} {d['ny']} هـ · "
+                   f"شروق {hhmm(t['sunrise'])} · غروب {hhmm(t['sunset'])}")
+
         lines += [
             "BEGIN:VEVENT",
             f"UID:nasi-{g}-{city_key}@nasi-calendar",
             f"DTSTAMP:{stamp}",
             f"DTSTART;VALUE=DATE:{gdate.strftime('%Y%m%d')}",
             f"DTEND;VALUE=DATE:{(gdate + timedelta(days=1)).strftime('%Y%m%d')}",
-            fold(f"SUMMARY:{escape_ics(f'{d['nd']} {d['nm']} {d['ny']} هـ')}"),
+            fold(f"SUMMARY:{escape_ics(summary)}"),
             fold(f"DESCRIPTION:{escape_ics('\n'.join(desc_parts))}"),
             "TRANSP:TRANSPARENT",
             "END:VEVENT",
@@ -155,7 +184,8 @@ def build(days, moon, eclipses, city_key, start, end):
     k_hi = int(math.ceil((end_jd - 2451550.09766) / 29.530588861)) + 1
 
     for k in range(k_lo, k_hi + 1):
-        for is_full, label in ((False, "بداية دورة قمرية جديدة (محاق)"), (True, "اكتمال القمر (بدر)")):
+        for is_full, label in ((False, "🌑 بداية دورة قمرية جديدة (محاق)"),
+                               (True, "🌕 اكتمال القمر (بدر)")):
             approx_y = 2000 + int(k / 12.3685)
             dt = jde_to_utc(moon_phase_jde(k, is_full), approx_y)
             if not (start <= dt.date().isoformat() <= end):
