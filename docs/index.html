@@ -131,6 +131,34 @@
   /* ---- phone ---- */
   #faqSearch { padding: 10px 12px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 
+  #subscribe .sub-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px;
+  }
+  #subscribe .sub-label { font-weight: 600; font-size: 0.85rem; min-width: 62px; }
+  /* the URL is LTR inside an RTL page, and scrolls in its own box rather than
+   * widening the page -- a 66-character URL cannot wrap without becoming
+   * impossible to copy by eye */
+  #subscribe .sub-url {
+    flex: 1; direction: ltr; text-align: left; white-space: nowrap; overflow-x: auto;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.72rem; color: var(--muted);
+  }
+  #subscribe .sub-copy {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    border-radius: 6px; padding: 6px 12px; font-size: 0.8rem;
+    cursor: pointer; white-space: nowrap;
+  }
+  #subscribe .sub-copy:hover { background: var(--accent-soft); }
+  #subscribe ol.sub-steps {
+    margin: 14px 0 0; padding-inline-start: 20px; line-height: 1.95; font-size: 0.9rem;
+  }
+  #subscribe .sub-warn {
+    margin: 14px 0 0; padding: 10px 12px; border-radius: 8px;
+    background: var(--accent-soft); font-size: 0.85rem; line-height: 1.75;
+  }
+
   @media (max-width: 640px) {
     header { padding: 18px 14px 12px; }
     header h1 { font-size: 1.3rem; }
@@ -167,6 +195,11 @@
     table.conv tbody th { font-size: 0.75rem; }
     table.conv td.d { width: 56px; } table.conv td.y { width: 76px; }
     table.conv thead th { font-size: 0.7rem; }
+
+    #subscribe .sub-row { flex-wrap: wrap; }
+    #subscribe .sub-url { order: 3; width: 100%; font-size: 0.68rem; }
+    #subscribe .sub-copy { margin-inline-start: auto; }
+    #subscribe ol.sub-steps { font-size: 0.86rem; }
 
     .sun-times { gap: 7px; }
     .sun-times .cell { padding: 9px 3px; }
@@ -253,6 +286,39 @@
     <p class="hint" style="margin-top:12px;margin-bottom:0;">
       الفجر والعشاء بحسب الهيئة المصرية العامة للمساحة (19.5°/17.5°) · المغرب = الغروب فلكياً في كل الأعراف تقريباً ·
       إضاءة القمر وعمر الدورة محسوبان فلكياً (نفس طريقة Meeus المستخدمة سابقاً في التحقق من التقويم)، وهما مستقلان عن تقويم النسيء نفسه.
+    </p>
+  </section>
+
+  <section class="panel" id="subscribe">
+    <h2>أضِف التقويم إلى تقويمك</h2>
+    <p class="hint" style="margin-top:-4px;">
+      اشترِك مرة واحدة فتظهر تواريخ النسيء وأوقات الشمس وأحداث القمر داخل تقويمك يوماً بيوم حتى نهاية 2030.
+      اختر مدينة واحدة فقط — أوقات الشمس تختلف بين المدن.
+    </p>
+
+    <div class="sub-row">
+      <span class="sub-label">القاهرة</span>
+      <code class="sub-url" id="urlCairo">https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics</code>
+      <button class="sub-copy" data-target="urlCairo">نسخ</button>
+    </div>
+    <div class="sub-row">
+      <span class="sub-label">برشلونة</span>
+      <code class="sub-url" id="urlBarcelona">https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics</code>
+      <button class="sub-copy" data-target="urlBarcelona">نسخ</button>
+    </div>
+
+    <ol class="sub-steps">
+      <li>انسخ رابط مدينتك من الأعلى.</li>
+      <li>افتح <strong>Google Calendar</strong> من كمبيوتر — إضافة رابط لا تعمل من تطبيق الهاتف.</li>
+      <li>في العمود الجانبي: <strong>تقويمات أخرى</strong> ← علامة <strong>+</strong> ← <strong>من عنوان URL</strong>.</li>
+      <li>الصق الرابط ثم اضغط <strong>إضافة تقويم</strong>.</li>
+      <li>انتهى. سيظهر التقويم على هاتفك تلقائياً بعد المزامنة.</li>
+    </ol>
+
+    <p class="sub-warn">
+      <strong>مهم:</strong> استخدم «من عنوان URL» ولا تستخدم «استيراد».
+      الاشتراك يُنشئ تقويماً مستقلاً يمكن إخفاؤه أو إلغاؤه بضغطة واحدة،
+      أما الاستيراد فينسخ آلاف الأحداث داخل تقويمك الشخصي بلا طريقة لحذفها دفعة واحدة.
     </p>
   </section>
 
@@ -562,6 +628,26 @@ function renderMoonEvents(s) {
   $("todayBtn").addEventListener("click", () => setDate(todayISO()));
   $("citySel").value = selectedCity;
   $("citySel").addEventListener("change", () => { selectedCity = $("citySel").value; renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); });
+
+  document.querySelectorAll(".sub-copy").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const url = $(btn.dataset.target).textContent.trim();
+      const label = btn.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        btn.textContent = "تم النسخ ✓";
+      } catch {
+        // clipboard is blocked on insecure origins and in some in-app browsers;
+        // select the text instead so the reader can copy it by hand
+        const r = document.createRange();
+        r.selectNodeContents($(btn.dataset.target));
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(r);
+        btn.textContent = "انسخ يدوياً";
+      }
+      setTimeout(() => { btn.textContent = label; }, 1800);
+    });
+  });
 
   for (const id of ["gD","gY"]) $(id).addEventListener("input", fromGregorian);
   $("gM").addEventListener("change", fromGregorian);
