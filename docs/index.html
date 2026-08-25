@@ -131,6 +131,12 @@
   /* ---- phone ---- */
   #faqSearch { padding: 10px 12px; font-size: 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 
+  /* `main` is a CSS grid, and a grid item defaults to min-width:auto -- it will
+   * not shrink below its own min-content. Without this the section stays as wide
+   * as the longest URL and drags the whole page with it, no matter what the
+   * inner overflow rules say. The overflow-x on .sub-url only works once the
+   * ancestor is actually allowed to be narrower than its contents. */
+  #subscribe { min-width: 0; }
   #subscribe .sub-row {
     display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
     background: var(--bg); border: 1px solid var(--line);
