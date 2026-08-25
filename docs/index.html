@@ -25,7 +25,11 @@
   header { padding: 28px 20px 18px; text-align: center; }
   header h1 { margin: 0 0 6px; font-size: 1.6rem; }
   header p { margin: 0 auto; color: var(--muted); font-size: 0.92rem; max-width: 640px; }
-  main { max-width: 980px; margin: 0 auto; padding: 0 16px 60px; display: grid; gap: 24px; }
+  /* minmax(0,1fr), not the implicit `auto` track: an auto track sizes to its
+   * widest content, so one long unbreakable string in any panel would stretch
+   * the whole page sideways on a phone. */
+  main { max-width: 980px; margin: 0 auto; padding: 0 16px 60px;
+         display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
   .panel h2 { margin: 0 0 14px; font-size: 1.05rem; }
   .hint { margin: -6px 0 14px; color: var(--muted); font-size: 0.82rem; }
@@ -147,13 +151,12 @@
    * widening the page -- a 66-character URL cannot wrap without becoming
    * impossible to copy by eye */
   #subscribe .sub-url {
-    /* min-width:0 is load-bearing: a flex item defaults to min-width:auto and
-     * refuses to shrink below its content, so without this the nowrap URL drags
-     * the whole document wider than the phone and overflow-x never engages */
+    /* a URL contains no spaces, so it only wraps if breaking mid-token is
+     * allowed; min-width:0 lets it shrink inside the flex row */
     flex: 1; min-width: 0;
-    direction: ltr; text-align: left; white-space: nowrap; overflow-x: auto;
+    direction: ltr; text-align: left; overflow-wrap: anywhere;
     font-family: ui-monospace, Menlo, Consolas, monospace;
-    font-size: 0.72rem; color: var(--muted);
+    font-size: 0.72rem; line-height: 1.55; color: var(--muted);
   }
   #subscribe .sub-copy {
     border: 1px solid var(--line); background: var(--panel); color: var(--ink);
@@ -207,7 +210,7 @@
     table.conv thead th { font-size: 0.7rem; }
 
     #subscribe .sub-row { flex-wrap: wrap; }
-    #subscribe .sub-url { order: 3; width: 100%; font-size: 0.68rem; }
+    #subscribe .sub-url { order: 3; width: 100%; font-size: 0.7rem; }
     #subscribe .sub-copy { margin-inline-start: auto; }
     #subscribe ol.sub-steps { font-size: 0.86rem; }
 
