@@ -121,7 +121,7 @@ def fold(line):
     return "\r\n ".join(out)
 
 
-def build(days, moon, eclipses, city_key, start, end):
+def build(days, moon, eclipses, city_key, start, end, sun_events=True):
     city = CITIES[city_key]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
@@ -135,7 +135,7 @@ def build(days, moon, eclipses, city_key, start, end):
              "وأحداث الخسوف من كتالوج ناسا."),
     ]
 
-    n_day = n_moon = n_ecl = 0
+    n_day = n_moon = n_ecl = n_sun = 0
     epoch = date(2000, 1, 1)
 
     # --- 1. all-day Nasi' date entries, with sun times + moon illumination ---
@@ -156,13 +156,13 @@ def build(days, moon, eclipses, city_key, start, end):
         if illum is not None:
             desc_parts.append(f"إضاءة القمر: {illum}٪")
 
-        # sunrise/sunset ride in the TITLE because Google's grid only renders the
-        # title -- fajr and isha stay in the description, since all four would
-        # overflow the row. Each time keeps its Arabic label so the bidi
-        # reordering of LTR digits inside RTL text can never make them ambiguous.
+        # The headline carries only the date and the moon's phase. The four sun
+        # events are emitted below as TIMED entries so they land in the day grid
+        # at the hour they actually happen -- reading "الغروب" in the 19:00 row
+        # beats parsing a time out of an all-day banner. Full times stay in this
+        # description too, so one tap still shows all four together.
         icon = moon_emoji(illum, age) + " " if illum is not None else ""
-        summary = (f"{icon}{d['nd']} {d['nm']} {d['ny']} هـ · "
-                   f"شروق {hhmm(t['sunrise'])} · غروب {hhmm(t['sunset'])}")
+        summary = f"{icon}{d['nd']} {d['nm']} {d['ny']} هـ"
 
         lines += [
             "BEGIN:VEVENT",
@@ -176,6 +176,34 @@ def build(days, moon, eclipses, city_key, start, end):
             "END:VEVENT",
         ]
         n_day += 1
+
+        # --- the four sun events, as timed entries at their real instants ---
+        # Written in UTC like the moon events: sunrise in Cairo is an instant,
+        # so a client renders it in whatever zone the reader is in, and there is
+        # no VTIMEZONE block to go stale when a country changes its DST rules
+        # (Egypt did, in 2023, mid-way through this calendar's range).
+        # TRANSP:TRANSPARENT matters more here than anywhere else -- four opaque
+        # events a day would make the reader permanently "busy" to anyone
+        # checking their free/busy.
+        if sun_events:
+            for key, label in (("fajr", "الفجر"), ("sunrise", "الشروق"),
+                               ("sunset", "الغروب"), ("isha", "العشاء")):
+                when = t.get(key)
+                if when is None:          # undefined at high latitude; skip it
+                    continue
+                z = when.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                lines += [
+                    "BEGIN:VEVENT",
+                    f"UID:sun-{key}-{g}-{city_key}@nasi-calendar",
+                    f"DTSTAMP:{stamp}",
+                    f"DTSTART:{z}",
+                    f"DTEND:{z}",
+                    fold(f"SUMMARY:{escape_ics(label)}"),
+                    fold(f"DESCRIPTION:{escape_ics(f'{label} في {city["label"]}')}"),
+                    "TRANSP:TRANSPARENT",
+                    "END:VEVENT",
+                ]
+                n_sun += 1
 
     # --- 2. exact new-moon and full-moon instants ---
     start_jd = greg_to_jd(*[int(x) for x in start.split("-")])
@@ -223,7 +251,7 @@ def build(days, moon, eclipses, city_key, start, end):
         n_ecl += 1
 
     lines.append("END:VCALENDAR")
-    return "\r\n".join(lines) + "\r\n", n_day, n_moon, n_ecl
+    return "\r\n".join(lines) + "\r\n", n_day, n_moon, n_ecl, n_sun
 
 
 def main():
@@ -233,6 +261,11 @@ def main():
     ap.add_argument("--end")
     ap.add_argument("--years-around", type=int, default=1)
     ap.add_argument("--out", required=True)
+    # Four extra events a day is ~4x the file. Worth it over five years; over a
+    # century it would be a ~55MB feed that every subscriber re-fetches daily,
+    # so the 100-year file deliberately ships without them.
+    ap.add_argument("--no-sun-events", action="store_true",
+                    help="omit the four timed daily sun events (used for the 100-year feed)")
     a = ap.parse_args()
 
     today = date.today()
@@ -244,14 +277,16 @@ def main():
     moon = json.load(open(MOON_JSON, encoding="utf-8"))
     eclipses = json.load(open(ECLIPSE_JSON, encoding="utf-8"))
 
-    ics, nd, nm, ne = build(days, moon, eclipses, a.city, start, end)
+    ics, nd, nm, ne, ns = build(days, moon, eclipses, a.city, start, end,
+                                sun_events=not a.no_sun_events)
     with open(a.out, "w", encoding="utf-8", newline="") as f:
         f.write(ics)
-    total = nd + nm + ne
+    total = nd + nm + ne + ns
     print(f"wrote {total} events to {a.out}")
     print(f"  {nd} daily Nasi' dates (with {a.city} sun times + moon illumination)")
     print(f"  {nm} moon phase instants (new/full)")
     print(f"  {ne} lunar eclipses (NASA catalog)")
+    print(f"  {ns} timed sun events (fajr/sunrise/sunset/isha)")
     print(f"  range {start} .. {end}")
     if total > 1000:
         print(f"  NOTE: {total} events exceeds Google's ~1000-event manual-import cap;")

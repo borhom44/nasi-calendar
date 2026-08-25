@@ -52,11 +52,21 @@ https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics
 
 Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
 
-| Span | Range | Events | Size | Import? | Subscribe? |
-|------|-------|-------:|-----:|---------|------------|
-| `-1y`   | rolling ±1 yr | 786    | 250 KB | yes | yes |
-| `-5y`   | 2026–2030     | 1,962  | 631 KB | probably | yes |
-| `-100y` | 2000–2100     | 39,619 | 13 MB  | no  | yes |
+| Span | Range | Events | Size | Timed sun events | Import? | Subscribe? |
+|------|-------|-------:|-----:|------------------|---------|------------|
+| `-1y`   | rolling ±1 yr | 3,710  | 0.92 MB | yes | no | yes |
+| `-5y`   | 2026–2030     | 9,266  | 2.3 MB  | yes | no | yes |
+| `-100y` | 2000–2100     | 39,619 | 12.7 MB | **no** | no | yes |
+
+Every feed now carries four timed events a day — الفجر / الشروق / الغروب / العشاء —
+at their exact instants, so they land in the day grid rather than being buried in
+an all-day banner's description. That is 4× the events, which is affordable over
+five years and not over a century: the 100-year feed is generated with
+`--no-sun-events` deliberately, since with them it would be a ~55 MB file that
+every subscriber re-fetches daily. It still carries the daily Nasi' date, the
+moon phase icon, the new/full moon instants and the NASA eclipses.
+
+**Importing is no longer viable for any span** — subscribe by URL.
 
 Subscribing has no event-count ceiling and auto-updates; importing copies the
 events in once and is capped. When in doubt, subscribe.
