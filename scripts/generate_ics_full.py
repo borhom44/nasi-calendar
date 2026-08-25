@@ -129,6 +129,12 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
         "VERSION:2.0",
         "PRODID:-//nasi-calendar//Nasi + sun + moon//AR",
         "CALSCALE:GREGORIAN",
+        # Google ignores both of these and refetches on its own schedule (8-24h,
+        # sometimes longer, with no way for a publisher to trigger it). Apple
+        # Calendar and Outlook do honour them, so they are worth stating even
+        # though the largest audience will not act on them.
+        "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
+        "X-PUBLISHED-TTL:PT12H",
         fold(f"X-WR-CALNAME:التقويم النسيء — {city['label']}"),
         fold("X-WR-CALDESC:تقويم النسيء مع أوقات الشمس وأحداث القمر. "
              "التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA) "
