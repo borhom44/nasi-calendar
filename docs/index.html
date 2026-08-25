@@ -2,7 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f7f3ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="النسيء">
+<meta name="description" content="التقويم النسيء: تقويم شمسي-قمري قبل الإسلام، مع أوقات الشمس وأطوار القمر، 2000-2100م.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>التقويم النسيء | Nasi' Calendar</title>
 <style>
   :root {
@@ -227,6 +234,54 @@
     #moonEventPopover { max-width: calc(100vw - 24px); }
   }
 
+  /* ---- tab shell -------------------------------------------------------
+   * One screen at a time instead of one long scroll. On a phone the bar is
+   * pinned to the bottom (thumb reach, and the iOS convention); on a desktop
+   * that would look wrong, so it becomes a row under the header instead. */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: grid; gap: 24px; }
+
+  nav.tabs {
+    display: flex; gap: 4px; justify-content: center;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 4px; margin: 0 auto 20px;
+    max-width: 980px;
+  }
+  nav.tabs button {
+    flex: 1; border: none; background: none; color: var(--muted);
+    font-family: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 10px 6px; border-radius: 9px; cursor: pointer;
+    white-space: nowrap; min-height: 44px;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+
+  @media (max-width: 640px) {
+    nav.tabs {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+      margin: 0; max-width: none; border-radius: 0;
+      border: none; border-top: 1px solid var(--line);
+      /* the home-indicator strip on a modern iPhone sits over anything flush
+       * to the bottom edge -- without this the labels are half-covered */
+      padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    }
+    nav.tabs button { font-size: 0.78rem; padding: 8px 2px; }
+    /* leave room so the last panel is not hidden behind the fixed bar */
+    main { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+    /* the standfirst is three lines of prose on a phone -- it belongs on the
+     * info tab, not above the fold of every single screen */
+    header p { display: none; }
+    header { padding: 14px 14px 10px; }
+    header h1 { font-size: 1.15rem; }
+    footer { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  }
+
+  /* the header standfirst is hidden on phones; this is the same text, shown
+   * only there, so a first-time visitor on mobile still learns what this is */
+  .intro-mobile { display: none; }
+  @media (max-width: 640px) { .intro-mobile { display: block; } }
+
   #credits .credit-body { font-size: 0.88rem; line-height: 1.85; color: var(--ink); margin: 0 0 12px; }
   #credits strong { color: var(--accent); }
 </style>
@@ -237,7 +292,15 @@
   <p>تقويم شمسي‑قمري كان يُستخدم قبل الإسلام، يُدرج فيه شهر «النسيء» كل نحو ثلاث سنوات لمواءمة السنة القمرية مع الفصول.
   البيانات مأخوذة من الجدول المرفق بكتاب «براءة النسيء» (وسام الدين إسحق)، ويغطي الأعوام 2000–2100م.</p>
 </header>
+<nav class="tabs" role="tablist" aria-label="أقسام التطبيق">
+  <button role="tab" data-tab="calendar"  aria-selected="true"  aria-controls="tab-calendar">التقويم</button>
+  <button role="tab" data-tab="convert"   aria-selected="false" aria-controls="tab-convert">التحويل</button>
+  <button role="tab" data-tab="sky"       aria-selected="false" aria-controls="tab-sky">القمر</button>
+  <button role="tab" data-tab="info"      aria-selected="false" aria-controls="tab-info">معلومات</button>
+</nav>
+
 <main>
+ <div class="tab-panel active" id="tab-calendar" role="tabpanel">
   <section class="panel">
     <h2>عرض الشهر</h2>
     <div class="month-nav">
@@ -254,6 +317,9 @@
     </table>
   </section>
 
+ </div>
+
+ <div class="tab-panel" id="tab-convert" role="tabpanel">
   <section class="panel">
     <h2>تحويل التواريخ</h2>
     <p class="hint">عدّل أي صف وتتحدّث الصفوف الأخرى تلقائياً · الصيغة: يوم / شهر / سنة</p>
@@ -282,6 +348,9 @@
     </table>
     <div class="result" id="convResult"></div>
   </section>
+ </div>
+
+ <div class="tab-panel" id="tab-sky" role="tabpanel">
   <section class="panel">
     <h2>القمر والشمس</h2>
     <div class="city-row">
@@ -303,6 +372,16 @@
       الفجر والعشاء بحسب الهيئة المصرية العامة للمساحة (19.5°/17.5°) · المغرب = الغروب فلكياً في كل الأعراف تقريباً ·
       إضاءة القمر وعمر الدورة محسوبان فلكياً (نفس طريقة Meeus المستخدمة سابقاً في التحقق من التقويم)، وهما مستقلان عن تقويم النسيء نفسه.
     </p>
+  </section>
+
+ </div>
+
+ <div class="tab-panel" id="tab-info" role="tabpanel">
+  <section class="panel intro-mobile">
+    <h2>ما هو التقويم النسيء؟</h2>
+    <p class="credit-body">تقويم شمسي‑قمري كان يُستخدم قبل الإسلام، يُدرج فيه شهر «النسيء» كل نحو ثلاث سنوات
+    لمواءمة السنة القمرية مع الفصول. البيانات مأخوذة من الجدول المرفق بكتاب «براءة النسيء»
+    (وسام الدين إسحق)، ويغطي الأعوام 2000–2100م.</p>
   </section>
 
   <section class="panel" id="subscribe">
@@ -372,6 +451,7 @@
     </p>
   </section>
 
+ </div>
 </main>
 <div id="moonEventPopover"></div>
 <footer>
@@ -644,6 +724,38 @@ function renderMoonEvents(s) {
   $("todayBtn").addEventListener("click", () => setDate(todayISO()));
   $("citySel").value = selectedCity;
   $("citySel").addEventListener("change", () => { selectedCity = $("citySel").value; renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); });
+
+  // ---- tab shell ----------------------------------------------------------
+  const tabBtns = [...document.querySelectorAll("nav.tabs button")];
+  function showTab(name, remember = true) {
+    tabBtns.forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+    document.querySelectorAll(".tab-panel").forEach(pane =>
+      pane.classList.toggle("active", pane.id === "tab-" + name));
+    // the moon popover is position:fixed against a cell that may no longer be
+    // on screen -- leaving it open would strand it over the new tab
+    const pop = $("moonEventPopover");
+    if (pop) pop.style.display = "none";
+    window.scrollTo(0, 0);
+    if (remember) { try { localStorage.setItem("nasiTab", name); } catch {} }
+  }
+  tabBtns.forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+  try {
+    const saved = localStorage.getItem("nasiTab");
+    if (saved && document.getElementById("tab-" + saved)) showTab(saved, false);
+  } catch {}
+
+  // A deep link such as #subscribe used to just scroll; now the section it
+  // names lives inside a hidden tab, so open that tab first. Runs after the
+  // saved-tab restore on purpose -- an explicit link should win over memory.
+  if (location.hash) {
+    const target = document.querySelector(location.hash);
+    const pane = target && target.closest(".tab-panel");
+    if (pane) {
+      showTab(pane.id.replace("tab-", ""), false);
+      target.scrollIntoView({ block: "start" });
+    }
+  }
 
   document.querySelectorAll(".sub-copy").forEach((btn) => {
     btn.addEventListener("click", async () => {
