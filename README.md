@@ -38,6 +38,21 @@ ground truth rather than re-deriving the rule.
 
 **Coverage: 2000-01-01 through 2100-12-31 only** (whatever the source table covers).
 
+## Live site
+
+**https://borhom44.github.io/nasi-calendar/**
+
+Subscribe-by-URL feeds (Google Calendar → Add calendar → From URL):
+
+```
+https://borhom44.github.io/nasi-calendar/data/nasi-cairo-full-100y.ics
+https://borhom44.github.io/nasi-calendar/data/nasi-barcelona-full-100y.ics
+```
+
+The `-1y` variants are small enough for Google's manual **Import** instead,
+if you'd rather not subscribe.
+
+
 ## Month names (deliberate departure from the standard Hijri calendar)
 
 This calendar has **no المحرم**. The twelve regular months run:
@@ -89,7 +104,7 @@ documented, intended placement, not an extraction error.
 - `data/nasi_days.json` — every day in range, `{g: "YYYY-MM-DD", ny, nm, nd}`.
 - `data/nasi_months.json` — the same data compressed to month boundaries
   (~1,250 rows instead of ~36,890) — this is what the web page actually uses.
-- `data/nasi-{cairo,barcelona}-full-1y.ics` — enriched Google Calendar feeds
+- `docs/data/nasi-{cairo,barcelona}-full-1y.ics` — enriched Google Calendar feeds
   (Nasi' dates + sun times + moon/eclipse events), sized to fit Google's
   manual-import cap. The `-100y` variants cover the full range for the
   subscribe-by-URL path.
@@ -137,11 +152,11 @@ Google Calendar's manual **Import** screen has an undocumented soft cap around
 ~1,000 events per file.
 
 - **Import directly** (works today, no hosting needed): Settings → Import &
-  Export → upload `data/nasi-cairo-full-1y.ics` (or the Barcelona one). 786
+  Export → upload `docs/data/nasi-cairo-full-1y.ics` (or the Barcelona one). 786
   events: 731 daily Nasi' dates carrying that city's fajr/sunrise/sunset/isha
   and the moon's illumination in the description, plus 49 exact new/full-moon
   instants and 6 real lunar eclipses as timed events.
-- **Full 2000–2100 range**: use `data/nasi-{city}-full-100y.ics` (39,619
+- **Full 2000–2100 range**: use `docs/data/nasi-{city}-full-100y.ics` (39,619
   events) via "Add calendar → From URL". That path has no event-count ceiling
   but needs a public HTTPS URL.
 
@@ -154,8 +169,8 @@ DST rule to go stale — which matters here, because Egypt reinstated DST in
 Regenerate with a custom range or city:
 
 ```bash
-python scripts/generate_ics_full.py --city cairo --years-around 1 --out data/custom.ics
-python scripts/generate_ics_full.py --city barcelona --start 2000-01-01 --end 2100-12-31 --out data/bcn-full.ics
+python scripts/generate_ics_full.py --city cairo --years-around 1 --out docs/data/custom.ics
+python scripts/generate_ics_full.py --city barcelona --start 2000-01-01 --end 2100-12-31 --out docs/data/bcn-full.ics
 ```
 
 ## Rebuilding the data
