@@ -108,7 +108,7 @@ documented, intended placement, not an extraction error.
   (Nasi' dates + sun times + moon/eclipse events), sized to fit Google's
   manual-import cap. The `-100y` variants cover the full range for the
   subscribe-by-URL path.
-- `web/index.html` — a standalone converter page: a month-grid view (each
+- `docs/index.html` — the web app (also what GitHub Pages serves): a month-grid view (each
   Gregorian day shows its Nasi' date underneath, the same convention the
   source table uses) plus a two-way date converter.
 - `scripts/extract_spans.py` — PDF → `data/raw_spans.json` (colour-tagged text
@@ -141,7 +141,7 @@ It's a static page with no build step, but it loads its data via
 it locally instead:
 
 ```bash
-python -m http.server 8902 --directory web
+python -m http.server 8902 --directory docs
 ```
 
 Then open `http://localhost:8902`.
