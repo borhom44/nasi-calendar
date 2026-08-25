@@ -141,7 +141,11 @@
    * widening the page -- a 66-character URL cannot wrap without becoming
    * impossible to copy by eye */
   #subscribe .sub-url {
-    flex: 1; direction: ltr; text-align: left; white-space: nowrap; overflow-x: auto;
+    /* min-width:0 is load-bearing: a flex item defaults to min-width:auto and
+     * refuses to shrink below its content, so without this the nowrap URL drags
+     * the whole document wider than the phone and overflow-x never engages */
+    flex: 1; min-width: 0;
+    direction: ltr; text-align: left; white-space: nowrap; overflow-x: auto;
     font-family: ui-monospace, Menlo, Consolas, monospace;
     font-size: 0.72rem; color: var(--muted);
   }
