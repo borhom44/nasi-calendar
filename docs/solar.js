@@ -14,10 +14,10 @@ const RAD = Math.PI / 180;
 const SUN_DISC = -0.833;      // upper limb on the horizon
 const TWILIGHT = -18.0;       // astronomical twilight, both ends
 
-const CITIES = {
-  cairo:     { label: "القاهرة",   lat: 30.0444, lon: 31.2357, tz: "Africa/Cairo" },
-  barcelona: { label: "برشلونة",   lat: 41.3874, lon: 2.1686,  tz: "Europe/Madrid" },
-};
+/* CITIES now comes from the generated cities-data.js, which is emitted from
+ * data/cities.json -- the single registry. It used to be declared here AND in
+ * generate_ics_full.py, so a coordinate could differ between the app and the
+ * feed with nothing to catch it. cities-data.js must load before this file. */
 
 function _solarParams(jd) {
   const T = (jd - 2451545.0) / 36525.0;

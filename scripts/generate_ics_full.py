@@ -24,18 +24,19 @@ import math
 import sys
 from datetime import date, datetime, timedelta, timezone
 
-sys.path.insert(0, r"C:\Dev\nasi-calendar\scripts")
+# Paths derive from this file, not from an absolute Windows path. The old
+# hardcoded C:\Dev\... meant the generator could not run on the VPS at all,
+# which is where feeds are ultimately built.
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from solar_times import sun_times, hhmm, SUN_EVENTS  # noqa: E402
+from cities import CITIES, DATA, label as city_label  # noqa: E402
 from generate_moon_phases import new_moon_jde, greg_to_jd, _args, _planetary, RAD  # noqa: E402
 
-DAYS_JSON = r"C:\Dev\nasi-calendar\data\nasi_days.json"
-MOON_JSON = r"C:\Dev\nasi-calendar\data\moon_phases.json"
-ECLIPSE_JSON = r"C:\Dev\nasi-calendar\data\lunar_eclipses.json"
-
-CITIES = {
-    "cairo":     {"label": "القاهرة",  "lat": 30.0444, "lon": 31.2357, "tz": "Africa/Cairo"},
-    "barcelona": {"label": "برشلونة", "lat": 41.3874, "lon": 2.1686,  "tz": "Europe/Madrid"},
-}
+DAYS_JSON = str(DATA / "nasi_days.json")
+MOON_JSON = str(DATA / "moon_phases.json")
+ECLIPSE_JSON = str(DATA / "lunar_eclipses.json")
 
 # Unicode has all eight phases, which is the closest an .ics can get to the
 # app's SVG moon. The thresholds are copied from docs/moon.js MOON_PHASE_NAMES
@@ -121,7 +122,10 @@ def fold(line):
     return "\r\n ".join(out)
 
 
-def build(days, moon, eclipses, city_key, start, end, sun_events=True):
+def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"):
+    # lang selects the display language for every label in the feed. It is a
+    # parameter rather than a constant because Phase 2 generates one feed per
+    # city per language from this same code path -- no wording is hardcoded.
     city = CITIES[city_key]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
@@ -135,7 +139,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
         # though the largest audience will not act on them.
         "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
         "X-PUBLISHED-TTL:PT12H",
-        fold(f"X-WR-CALNAME:التقويم النسيء — {city['label']}"),
+        fold(f"X-WR-CALNAME:التقويم النسيء — {city_label(city, lang)}"),
         fold("X-WR-CALDESC:تقويم النسيء مع أوقات الشمس وأحداث القمر. "
              "التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA) "
              "وأحداث الخسوف من كتالوج ناسا."),
@@ -159,7 +163,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
         # the app's own panel can never disagree about wording or order.
         desc_parts = [
             " · ".join(f"{label} {hhmm(t[key])}" for key, label in SUN_EVENTS)
-            + f"  ({city['label']})",
+            + f"  ({city_label(city, lang)})",
         ]
         if illum is not None:
             desc_parts.append(f"إضاءة القمر: {illum}٪")
@@ -206,7 +210,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
                     f"DTSTART:{z}",
                     f"DTEND:{z}",
                     fold(f"SUMMARY:{escape_ics(label)}"),
-                    fold(f"DESCRIPTION:{escape_ics(f'{label} في {city["label"]}')}"),
+                    fold(f"DESCRIPTION:{escape_ics(f'{label} في {city_label(city, lang)}')}"),
                     "TRANSP:TRANSPARENT",
                     "END:VEVENT",
                 ]

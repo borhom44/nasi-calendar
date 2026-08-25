@@ -365,10 +365,8 @@
     <h2>القمر والشمس</h2>
     <div class="city-row">
       <label for="citySel" style="color:var(--muted);font-size:0.85rem;">المدينة:</label>
-      <select id="citySel">
-        <option value="cairo">القاهرة</option>
-        <option value="barcelona">برشلونة</option>
-      </select>
+      <!-- populated from the city registry at init; see fillCitySelect() -->
+      <select id="citySel"></select>
     </div>
     <div class="sun-moon-grid">
       <div class="moon-big" id="moonBig"></div>
@@ -472,8 +470,11 @@
 <script src="nasi-calendar.js?v=bedb056b"></script>
 <script src="hijri.js?v=381a224a"></script>
 <script src="moon-phases-data.js?v=2c2f8b6e"></script>
+<!-- generated from data/cities.json by scripts/build_web.py; solar.js and
+     moon-events.js both read the CITIES global it defines -->
+<script src="cities-data.js?v=ad08f698"></script>
 <script src="moon.js?v=11a84b9f"></script>
-<script src="solar.js?v=5b66577c"></script>
+<script src="solar.js?v=54275f0f"></script>
 <script src="moon-events.js?v=0baa5099"></script>
 <script src="eclipses-data.js?v=152d4b3a"></script>
 <script src="faq-data.js?v=ef20068d"></script>
@@ -643,7 +644,8 @@ function showEventPopover(anchorEl, dayEvents) {
     if (ev.type === "new") return `بداية دورة قمرية جديدة – الساعة ${time}`;
     if (ev.type === "full") return `اكتمال القمر (بدر) – الساعة ${time}`;
     const vis = likelyVisibleAt(ev.time, selectedCity);
-    const visTxt = vis === null ? "" : (vis ? ` · مرئي على الأرجح من ${city.label}` : ` · غير مرئي من ${city.label} (نهاراً هناك)`);
+    const cityName = cityLabel(selectedCity, LANG);
+    const visTxt = vis === null ? "" : (vis ? ` · مرئي على الأرجح من ${cityName}` : ` · غير مرئي من ${cityName} (نهاراً هناك)`);
     return `${ECLIPSE_LABEL[ev.kind]} – الساعة ${time}${visTxt}`;
   });
   pop.innerHTML = lines.map(l => `<div class="ev-line">${l}</div>`).join("");
@@ -668,7 +670,41 @@ window.addEventListener("scroll", () => {   // fixed-position popover would othe
 }, true);
 
 /* ---------- moon + sun panel ---------- */
-let selectedCity = "cairo";
+/* The language seam. Everything user-facing reads this rather than assuming
+ * Arabic, so Phase 4 becomes a value change plus a string table -- not a
+ * sweep through every template literal in the file. */
+const LANG = "ar";
+
+/* Remembered across visits: with 33 cities, re-picking on every load is a
+ * real annoyance, and an unknown stored key (a city renamed while it had no
+ * feed) must fall back rather than blank the panel. */
+const CITY_STORE_KEY = "nasi.city";
+let selectedCity = (() => {
+  try {
+    const saved = localStorage.getItem(CITY_STORE_KEY);
+    if (saved && CITIES[saved]) return saved;
+  } catch (e) { /* private mode: fall through to the default */ }
+  return "cairo";
+})();
+
+/* The city dropdown is built from the registry, not typed into the markup:
+ * adding a city is a data edit and nothing else. Grouped by region because a
+ * flat list of 33 is unusable on a phone. */
+function fillCitySelect() {
+  const sel = $("citySel");
+  sel.innerHTML = "";
+  for (const { region, cities } of citiesByRegion(false)) {
+    const group = document.createElement("optgroup");
+    group.label = region[LANG] || region.ar;
+    for (const key of cities) {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = cityLabel(key, LANG);
+      group.appendChild(opt);
+    }
+    sel.appendChild(group);
+  }
+}
 
 function renderSunMoon(s) {
   const mp = moonPhaseForISO(s);
@@ -725,7 +761,8 @@ function renderMoonEvents(s) {
   const eclipses = eclipsesBetween(ev.cycleStart, ev.cycleEnd);
   for (const eclipse of eclipses) {
     const vis = likelyVisibleAt(eclipse.date, selectedCity);
-    const visNote = vis === null ? "" : (vis ? `مرئي على الأرجح من ${city.label} (ليلاً هناك)` : `غير مرئي من ${city.label} (نهاراً هناك)`);
+    const cityName = cityLabel(selectedCity, LANG);
+    const visNote = vis === null ? "" : (vis ? `مرئي على الأرجح من ${cityName} (ليلاً هناك)` : `غير مرئي من ${cityName} (نهاراً هناك)`);
     rows.push(
       `<div class="event-row"><span class="ev-label">${ECLIPSE_NAME[eclipse.k]}</span>` +
       `<span class="ev-time">${fmtLocalDateTime(eclipse.date, city.tz)}</span></div>` +
@@ -749,8 +786,13 @@ function renderMoonEvents(s) {
   $("navMonth").addEventListener("change", () => gotoMonth(viewYear, +$("navMonth").value));
   $("navYear").addEventListener("change", () => gotoMonth(+$("navYear").value, viewMonth));
   $("todayBtn").addEventListener("click", () => setDate(todayISO()));
+  fillCitySelect();
   $("citySel").value = selectedCity;
-  $("citySel").addEventListener("change", () => { selectedCity = $("citySel").value; renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); });
+  $("citySel").addEventListener("change", () => {
+    selectedCity = $("citySel").value;
+    try { localStorage.setItem(CITY_STORE_KEY, selectedCity); } catch (e) { /* private mode */ }
+    renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid();
+  });
 
   // ---- tab shell ----------------------------------------------------------
   const tabBtns = [...document.querySelectorAll("nav.tabs button")];
