@@ -151,11 +151,18 @@
     .moon-corner svg { width: 13px; height: 13px; }
 
     .month-nav { gap: 6px; }
-    .month-nav select, .month-nav input, .month-nav button { height: 40px; font-size: 0.9rem; }
+    .month-nav select, .month-nav input, .month-nav button { height: 40px; }
+    .month-nav button { font-size: 0.9rem; }
     .month-nav input { width: 74px; }
 
-    /* iOS zooms the page in on any focused input under 16px -- keep these at 16 */
-    table.conv input, table.conv select { font-size: 16px; padding: 9px 8px; }
+    /* iOS zooms the page in on any focused input or select under 16px, and it
+     * never zooms back out -- the reader is left stranded mid-page. So EVERY
+     * focusable control stays at 16, not just the converter's: the month and
+     * year pickers and the city selector reach the same trap. */
+    .month-nav select, .month-nav input,
+    table.conv input, table.conv select,
+    #citySel { font-size: 16px; }
+    table.conv input, table.conv select { padding: 9px 8px; }
     table.conv th, table.conv td { padding: 6px 3px; }
     table.conv tbody th { font-size: 0.75rem; }
     table.conv td.d { width: 56px; } table.conv td.y { width: 76px; }
