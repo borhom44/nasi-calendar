@@ -1,6 +1,9 @@
-/* Sun times (fajr, sunrise, sunset/maghrib, isha) -- JS port of
- * scripts/solar_times.py. Same NOAA algorithm, same event definitions; see
- * that file's docstring for why each angle is what it is.
+/* Sun times -- JS port of scripts/solar_times.py. Same NOAA algorithm, same
+ * event definitions; see that file's docstring for why each angle is what it is.
+ *
+ * Four events, one astronomical definition each. There are no conventions to
+ * choose: this is not a prayer-times app, so nothing here is regional,
+ * juristic, or configurable.
  *
  * Time zones: solved in UTC, then rendered via Intl.DateTimeFormat with an
  * explicit IANA zone, which uses the browser's own tz database -- so DST
@@ -8,8 +11,8 @@
  * offset, exactly like the Python side's zoneinfo.
  */
 const RAD = Math.PI / 180;
-const SUN_DISC = -0.833;
-const SOLAR_ANGLES = { egyptian: [19.5, 17.5], mwl: [18.0, 17.0], isna: [15.0, 15.0] };
+const SUN_DISC = -0.833;      // upper limb on the horizon
+const TWILIGHT = -18.0;       // astronomical twilight, both ends
 
 const CITIES = {
   cairo:     { label: "القاهرة",   lat: 30.0444, lon: 31.2357, tz: "Africa/Cairo" },
@@ -50,12 +53,13 @@ function _hourAngle(lat, decl, altitude) {
 }
 
 /* iso: "YYYY-MM-DD" LOCAL civil date at the given location. Returns
- * {fajr,sunrise,sunset,isha,solarNoon}: JS Date objects (UTC instants), or
- * null where the event does not occur (high-latitude persistent twilight). */
-function sunTimes(iso, cityKey, convention) {
-  convention = convention || "egyptian";
+ * {firstLight,sunrise,sunset,fullDark}: JS Date objects (UTC instants).
+ *
+ * firstLight/fullDark are null above ~48.56 deg N at midsummer, where the sun
+ * never reaches -18 -- the night genuinely never falls. That is a fact to
+ * display, not an error to paper over; see the white-nights note in PLAN.md. */
+function sunTimes(iso, cityKey) {
   const city = CITIES[cityKey];
-  const [fajrAng, ishaAng] = SOLAR_ANGLES[convention];
   const y = +iso.slice(0,4), m = +iso.slice(5,7), d = +iso.slice(8,10);
   const jd = _jdUTC(y, m, d) + 0.5 - city.lon / 360.0;
   const { decl, eqtime } = _solarParams(jd);
@@ -64,18 +68,25 @@ function sunTimes(iso, cityKey, convention) {
   const at = (minutes) => minutes === null ? null
     : new Date(Date.UTC(y, m - 1, d) + minutes * 60000);
 
-  const hFajr = _hourAngle(city.lat, decl, -fajrAng);
+  const hDark = _hourAngle(city.lat, decl, TWILIGHT);
   const hRise = _hourAngle(city.lat, decl, SUN_DISC);
-  const hIsha = _hourAngle(city.lat, decl, -ishaAng);
 
   return {
-    solarNoon: at(noonUTC),
-    fajr:    at(hFajr === null ? null : noonUTC - 4*hFajr),
-    sunrise: at(hRise === null ? null : noonUTC - 4*hRise),
-    sunset:  at(hRise === null ? null : noonUTC + 4*hRise),
-    isha:    at(hIsha === null ? null : noonUTC + 4*hIsha),
+    firstLight: at(hDark === null ? null : noonUTC - 4*hDark),
+    sunrise:    at(hRise === null ? null : noonUTC - 4*hRise),
+    sunset:     at(hRise === null ? null : noonUTC + 4*hRise),
+    fullDark:   at(hDark === null ? null : noonUTC + 4*hDark),
   };
 }
+
+/* The four events in display order, as [key, Arabic label]. Single source of
+ * truth -- the app and the .ics generator must not drift apart on wording. */
+const SUN_EVENTS = [
+  ["firstLight", "أول الضوء"],
+  ["sunrise",    "الشروق"],
+  ["sunset",     "الغروب"],
+  ["fullDark",   "الظلام التام"],
+];
 
 function fmtLocal(date, tz) {
   if (!date) return "--:--";

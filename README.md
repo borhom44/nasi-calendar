@@ -58,7 +58,7 @@ Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
 | `-5y`   | 2026–2030     | 9,266  | 2.3 MB  | yes | no | yes |
 | `-100y` | 2000–2100     | 39,619 | 12.7 MB | **no** | no | yes |
 
-Every feed now carries four timed events a day — الفجر / الشروق / الغروب / العشاء —
+Every feed now carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
 at their exact instants, so they land in the day grid rather than being buried in
 an all-day banner's description. That is 4× the events, which is affordable over
 five years and not over a century: the 100-year feed is generated with

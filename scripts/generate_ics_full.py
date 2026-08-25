@@ -3,7 +3,7 @@
 Three kinds of entry go into one file:
 
   1. One ALL-DAY event per day  -- title is the Nasi' date; the description
-     carries that day's fajr/sunrise/sunset/isha for the chosen city plus the
+     carries that day's four sun events for the chosen city plus the
      moon's illumination.
   2. TIMED events for each new moon and full moon, at their exact instants.
   3. TIMED events for each real lunar eclipse from NASA's catalog.
@@ -25,7 +25,7 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, r"C:\Dev\nasi-calendar\scripts")
-from solar_times import sun_times, hhmm  # noqa: E402
+from solar_times import sun_times, hhmm, SUN_EVENTS  # noqa: E402
 from generate_moon_phases import new_moon_jde, greg_to_jd, _args, _planetary, RAD  # noqa: E402
 
 DAYS_JSON = r"C:\Dev\nasi-calendar\data\nasi_days.json"
@@ -155,9 +155,11 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
         illum = moon[idx][0] if 0 <= idx < len(moon) else None
         age = moon[idx][1] if 0 <= idx < len(moon) else None
 
+        # Built from SUN_EVENTS so the description, the timed entries below and
+        # the app's own panel can never disagree about wording or order.
         desc_parts = [
-            f"فجر {hhmm(t['fajr'])} · شروق {hhmm(t['sunrise'])} · "
-            f"غروب {hhmm(t['sunset'])} · عشاء {hhmm(t['isha'])}  ({city['label']})",
+            " · ".join(f"{label} {hhmm(t[key])}" for key, label in SUN_EVENTS)
+            + f"  ({city['label']})",
         ]
         if illum is not None:
             desc_parts.append(f"إضاءة القمر: {illum}٪")
@@ -192,8 +194,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True):
         # events a day would make the reader permanently "busy" to anyone
         # checking their free/busy.
         if sun_events:
-            for key, label in (("fajr", "الفجر"), ("sunrise", "الشروق"),
-                               ("sunset", "الغروب"), ("isha", "العشاء")):
+            for key, label in SUN_EVENTS:
                 when = t.get(key)
                 if when is None:          # undefined at high latitude; skip it
                     continue
@@ -292,7 +293,7 @@ def main():
     print(f"  {nd} daily Nasi' dates (with {a.city} sun times + moon illumination)")
     print(f"  {nm} moon phase instants (new/full)")
     print(f"  {ne} lunar eclipses (NASA catalog)")
-    print(f"  {ns} timed sun events (fajr/sunrise/sunset/isha)")
+    print(f"  {ns} timed sun events (first light/sunrise/sunset/full dark)")
     print(f"  range {start} .. {end}")
     if total > 1000:
         print(f"  NOTE: {total} events exceeds Google's ~1000-event manual-import cap;")

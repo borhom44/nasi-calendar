@@ -1,27 +1,31 @@
-"""Sun times (fajr, sunrise, sunset/maghrib, isha) for any location and date.
+"""Sun times for any location and date.
 
 Pure computation -- no API, no network. NOAA solar position algorithm, good to
 about a minute below ~65 degrees latitude, well inside our display resolution.
 
-Event definitions, as the sun's altitude relative to the horizon:
+Four events, as the sun's altitude relative to the horizon:
 
-  fajr     -19.5   true dawn. Convention-dependent -- see ANGLES.
-  sunrise   -0.833 upper limb touching the horizon: -0.5667 refraction plus
-                   the sun's ~0.2667 semi-diameter. Sunrise is NOT altitude 0.
-  sunset    -0.833 the same event descending. Maghrib is the same instant in
-                   essentially every convention, so it is not computed twice.
-  isha     -17.5   "no daylight left". True astronomical dark is -18.0; Egypt's
-                   authority uses -17.5 (under two minutes apart at Cairo).
+  first_light  -18.0   the sky begins to lighten (astronomical twilight begins)
+  sunrise       -0.833 upper limb touching the horizon: -0.5667 refraction plus
+                       the sun's ~0.2667 semi-diameter. Sunrise is NOT altitude 0.
+  sunset        -0.833 the same event descending.
+  full_dark    -18.0   the last daylight is gone (astronomical twilight ends)
+
+There is exactly ONE definition per event. This is an astronomical calendar,
+not a prayer-times app: nothing here is regional, juristic, or configurable,
+and the old ANGLES table of fajr/isha conventions was removed deliberately.
+Solar noon is not computed -- it is used internally to solve the hour angles
+and is not an event anyone asked to see.
 
 TIME ZONES: everything is solved in UTC and then converted with `zoneinfo`,
 so DST is handled from the real IANA rules. This is not optional pedantry --
 Egypt reinstated DST in 2023, so Cairo is UTC+3 in August and UTC+2 in
 January. A fixed offset silently shifts half the year by an hour.
 
-HIGH LATITUDE: above roughly 48.5 degrees the sun never reaches -18 in
-midsummer, so fajr and isha genuinely DO NOT OCCUR on those dates -- night
-never falls. This returns None rather than inventing a time. See
-`persistent_twilight_days` to count them before choosing a city.
+HIGH LATITUDE: above 48.56 degrees (= 90 - 23.44 - 18) the sun never reaches
+-18 at midsummer, so first_light and full_dark genuinely DO NOT OCCUR on those
+dates -- night never falls. This returns None rather than inventing a time.
+See `white_night_days` to count them for a city.
 """
 import math
 from datetime import date, datetime, timedelta, timezone
@@ -29,16 +33,20 @@ from zoneinfo import ZoneInfo
 
 RAD = math.pi / 180.0
 
-# name -> (fajr depression, isha depression); None isha means "maghrib + 90 min"
-ANGLES = {
-    "egyptian":     (19.5, 17.5),   # Egyptian General Authority of Survey
-    "mwl":          (18.0, 17.0),   # Muslim World League
-    "isna":         (15.0, 15.0),   # Islamic Society of North America
-    "karachi":      (18.0, 18.0),   # Univ. of Islamic Sciences, Karachi
-    "umm_alqura":   (18.5, None),   # Umm al-Qura (Saudi Arabia)
-    "astronomical": (18.0, 18.0),   # pure astronomical twilight
-}
-SUN_DISC = -0.833
+SUN_DISC = -0.833       # upper limb on the horizon
+TWILIGHT = -18.0        # astronomical twilight, both ends
+
+# Latitude above which midsummer has no astronomical night at all.
+WHITE_NIGHT_LAT = 90.0 - 23.44 - 18.0     # 48.56
+
+# The four events in display order, as (key, Arabic label). Single source of
+# truth -- docs/solar.js carries the same list and the two must not drift.
+SUN_EVENTS = (
+    ("first_light", "أول الضوء"),
+    ("sunrise", "الشروق"),
+    ("sunset", "الغروب"),
+    ("full_dark", "الظلام التام"),
+)
 
 
 def _solar_params(jd):
@@ -83,13 +91,13 @@ def _hour_angle(lat, decl, altitude):
     return math.acos(cos_h) / RAD
 
 
-def sun_times(d, lat, lon, tzname, convention="egyptian"):
+def sun_times(d, lat, lon, tzname):
     """All four events for local date `d`, as timezone-aware local datetimes.
 
     lat/lon degrees, longitude POSITIVE EAST. tzname is an IANA zone
-    ("Africa/Cairo"). Any value may be None where the event does not occur.
+    ("Africa/Cairo"). first_light and full_dark may be None at high latitude
+    in summer; sunrise and sunset may be None inside the polar circles.
     """
-    fajr_ang, isha_ang = ANGLES[convention]
     tz = ZoneInfo(tzname)
     jd = _jd(d) + 0.5 - lon / 360.0          # centre the solve on local noon
     decl, eqtime = _solar_params(jd)
@@ -101,17 +109,13 @@ def sun_times(d, lat, lon, tzname, convention="egyptian"):
         base = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
         return (base + timedelta(minutes=minutes)).astimezone(tz)
 
-    out = {"solar_noon": at(noon_utc)}
-    for name, alt, sign in (("fajr", -fajr_ang, -1), ("sunrise", SUN_DISC, -1),
-                            ("sunset", SUN_DISC, +1)):
+    out = {}
+    for name, alt, sign in (("first_light", TWILIGHT, -1),
+                            ("sunrise", SUN_DISC, -1),
+                            ("sunset", SUN_DISC, +1),
+                            ("full_dark", TWILIGHT, +1)):
         H = _hour_angle(lat, decl, alt)
         out[name] = at(None if H is None else noon_utc + sign * 4.0 * H)
-
-    if isha_ang is None:                      # Umm al-Qura: fixed 90 min offset
-        out["isha"] = out["sunset"] + timedelta(minutes=90) if out["sunset"] else None
-    else:
-        H = _hour_angle(lat, decl, -isha_ang)
-        out["isha"] = at(None if H is None else noon_utc + 4.0 * H)
     return out
 
 
@@ -119,12 +123,22 @@ def hhmm(dt):
     return "--:--" if dt is None else dt.strftime("%H:%M")
 
 
-def persistent_twilight_days(lat, lon, tzname, year, convention="egyptian"):
-    """Days in `year` with no true night (fajr or isha undefined)."""
+def day_length(t):
+    """Seconds of daylight from a sun_times() dict, or None inside a polar day."""
+    if t["sunrise"] is None or t["sunset"] is None:
+        return None
+    return (t["sunset"] - t["sunrise"]).total_seconds()
+
+
+def white_night_days(lat, lon, tzname, year):
+    """Days in `year` with no astronomical night (first_light or full_dark absent).
+
+    Zero below WHITE_NIGHT_LAT. Measured: Berlin 69, London 59, Paris 19.
+    """
     n, d = 0, date(year, 1, 1)
     while d.year == year:
-        t = sun_times(d, lat, lon, tzname, convention)
-        if t["fajr"] is None or t["isha"] is None:
+        t = sun_times(d, lat, lon, tzname)
+        if t["first_light"] is None or t["full_dark"] is None:
             n += 1
         d += timedelta(days=1)
     return n
