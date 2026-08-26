@@ -142,3 +142,142 @@ function earthSunDistanceKm(jd) {
   return embKm + EARTH_EMB_RATIO * m.distanceKm
        * Math.cos((m.lon - sunLon) * RAD) * Math.cos(m.lat * RAD);
 }
+
+/* --- rise, set and azimuth ----------------------------------------------
+ *
+ * Solved by scanning the Moon's altitude across the local day at ten-minute
+ * steps and bisecting each crossing, rather than by Meeus's interpolation
+ * recipe. The scan costs about 150 evaluations of a 45-term series -- free at
+ * this scale -- and it handles the days that HAVE no moonrise correctly by
+ * construction. The Moon rises roughly 50 minutes later each day, so about one
+ * day in 29 has no rise and another no set. That is an astronomical fact, and
+ * a method that has to special-case it tends to report a wrong time instead.
+ */
+function _obliquity(T) {
+  return 23.0 + (26.0 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60;
+}
+
+/* Greenwich apparent sidereal time in degrees. */
+function _gst(jd) {
+  const T = (jd - 2451545.0) / 36525.0;
+  const theta = 280.46061837 + 360.98564736629 * (jd - 2451545.0)
+              + 0.000387933 * T * T - T * T * T / 38710000;
+  return ((theta % 360) + 360) % 360;
+}
+
+/* Altitude and azimuth of the Moon, degrees. Azimuth is measured from north
+ * through east, the convention a compass uses. */
+function moonAltAz(jd, latDeg, lonDeg) {
+  const m = moonPosition(jd);
+  const eps = _obliquity((jd - 2451545.0) / 36525.0) * RAD;
+  const lam = m.lon * RAD, bet = m.lat * RAD;
+
+  const ra = Math.atan2(
+    Math.sin(lam) * Math.cos(eps) - Math.tan(bet) * Math.sin(eps),
+    Math.cos(lam)
+  );
+  const dec = Math.asin(
+    Math.sin(bet) * Math.cos(eps) + Math.cos(bet) * Math.sin(eps) * Math.sin(lam)
+  );
+
+  const H = (_gst(jd) + lonDeg - ra / RAD) * RAD;
+  const lat = latDeg * RAD;
+
+  const alt = Math.asin(
+    Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H)
+  ) / RAD;
+  const az = (Math.atan2(
+    Math.sin(H),
+    Math.cos(H) * Math.sin(lat) - Math.tan(dec) * Math.cos(lat)
+  ) / RAD + 180) % 360;
+
+  // Standard altitude for the Moon: 0.7275 x horizontal parallax, less
+  // refraction. Unlike the Sun this is not a constant -- the parallax swings
+  // with distance, moving the horizon by about 3 arcminutes over a month.
+  const parallax = Math.asin(6378.14 / m.distanceKm) / RAD;
+  const h0 = 0.7275 * parallax - 0.5667;
+
+  return { alt, az, h0, distanceKm: m.distanceKm };
+}
+
+/* {rise, set, riseAz, setAz} for the LOCAL civil day at a city. Dates are UTC
+ * instants; either may be null on a day the event does not occur. */
+function moonRiseSet(iso, cityKey) {
+  const city = CITIES[cityKey];
+  const [y, mo, d] = iso.split("-").map(Number);
+  // Local midnight, expressed as a UTC instant, then a full local day forward.
+  const startUTC = Date.UTC(y, mo - 1, d) - _tzOffsetMs(Date.UTC(y, mo - 1, d), city.tz);
+  const STEP_MIN = 10, STEPS = (24 * 60) / STEP_MIN;
+
+  const at = (ms) => 2440587.5 + ms / 86400000;
+  const rel = (ms) => {
+    const s = moonAltAz(at(ms), city.lat, city.lon);
+    return { d: s.alt - s.h0, az: s.az };
+  };
+
+  let rise = null, set = null, riseAz = null, setAz = null;
+  let prev = rel(startUTC);
+  for (let i = 1; i <= STEPS; i++) {
+    const ms = startUTC + i * STEP_MIN * 60000;
+    const cur = rel(ms);
+    if (prev.d < 0 !== cur.d < 0) {
+      let lo = ms - STEP_MIN * 60000, hi = ms;
+      for (let j = 0; j < 30; j++) {
+        const mid = (lo + hi) / 2;
+        if (rel(mid).d < 0 === prev.d < 0) lo = mid; else hi = mid;
+      }
+      const t = new Date((lo + hi) / 2);
+      if (prev.d < 0) { if (!rise) { rise = t; riseAz = rel((lo + hi) / 2).az; } }
+      else { if (!set) { set = t; setAz = rel((lo + hi) / 2).az; } }
+    }
+    prev = cur;
+  }
+  return { rise, set, riseAz, setAz };
+}
+
+/* Milliseconds a zone is ahead of UTC at a given instant. Intl is the only
+ * source that knows the real DST rules, and Egypt reinstating DST in 2023
+ * mid-range is exactly why a fixed offset will not do. */
+function _tzOffsetMs(utcMs, tz) {
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hour12: false, year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(new Date(utcMs));
+  const g = (t) => +p.find((x) => x.type === t).value;
+  const asUTC = Date.UTC(g("year"), g("month") - 1, g("day"),
+                         g("hour") % 24, g("minute"), g("second"));
+  return asUTC - utcMs;
+}
+
+/* --- perigee, apogee, supermoon -----------------------------------------
+ * Local extrema of the Moon's distance. A "supermoon" is the common
+ * threshold: a full moon at 361,885 km or nearer, which is 90% of the way to
+ * the closest perigee. A micromoon is a full moon at 405,000 km or further.
+ */
+const SUPERMOON_KM = 361885;
+const MICROMOON_KM = 405000;
+
+function moonDistanceExtremesInRange(fromJD, toJD) {
+  const out = [];
+  const step = 0.25;
+  let a = moonPosition(fromJD - step).distanceKm;
+  let b = moonPosition(fromJD).distanceKm;
+  for (let jd = fromJD + step; jd <= toJD; jd += step) {
+    const c = moonPosition(jd).distanceKm;
+    if (b < a && b < c) out.push({ jd: _refineExtreme(jd - 2 * step, jd, true), kind: "perigee" });
+    if (b > a && b > c) out.push({ jd: _refineExtreme(jd - 2 * step, jd, false), kind: "apogee" });
+    a = b; b = c;
+  }
+  return out.map((e) => ({ ...e, km: moonPosition(e.jd).distanceKm }));
+}
+
+function _refineExtreme(lo, hi, wantMin) {
+  for (let i = 0; i < 40; i++) {
+    const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+    const better = wantMin
+      ? moonPosition(m1).distanceKm < moonPosition(m2).distanceKm
+      : moonPosition(m1).distanceKm > moonPosition(m2).distanceKm;
+    if (better) hi = m2; else lo = m1;
+  }
+  return (lo + hi) / 2;
+}
