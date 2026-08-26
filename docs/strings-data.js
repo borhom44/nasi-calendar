@@ -90,6 +90,15 @@ const STRINGS = {
   "lang.ar": {"ar": "العربية", "en": "Arabic"},
   "lang.en": {"ar": "الإنجليزية", "en": "English"},
   "sub.moreCities": {"ar": "المدن الأخرى متاحة داخل التطبيق الآن، وستحصل على روابط اشتراك خاصة بها عند نقل الاستضافة.", "en": "The other cities work inside the app already; they get their own subscription links when hosting moves."},
+  "city.custom": {"ar": "موقع مخصص…", "en": "Custom location…"},
+  "city.customName": {"ar": "موقعي", "en": "My location"},
+  "city.lat": {"ar": "خط العرض", "en": "Latitude"},
+  "city.lon": {"ar": "خط الطول", "en": "Longitude"},
+  "city.apply": {"ar": "تطبيق", "en": "Apply"},
+  "city.locate": {"ar": "حدّد موقعي", "en": "Use my location"},
+  "city.badCoords": {"ar": "خط العرض بين −90 و 90، وخط الطول بين −180 و 180.", "en": "Latitude must be between −90 and 90, longitude between −180 and 180."},
+  "city.customNote": {"ar": "اختر المنطقة الزمنية الصحيحة للموقع، وإلا ظهرت الأوقات بساعات جهازك لا بساعات المكان. لا يوجد رابط اشتراك للمواقع المخصصة.", "en": "Pick the location’s own timezone, or the times will read in your device’s hours rather than the place’s. Custom locations have no subscription link."},
+  "city.tz": {"ar": "المنطقة الزمنية", "en": "Timezone"},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

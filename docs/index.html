@@ -108,6 +108,22 @@
   .day-detail { grid-column: 1 / -1; margin-top: 6px; }
   .day-detail .event-row:first-child { border-top: none; }
 
+  .custom-city { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+                 margin-top: 10px; }
+  .custom-city label { font-size: 0.85rem; color: var(--muted); }
+  /* 16px or iOS zooms the whole page when the field takes focus. */
+  .custom-city select { height: 34px; font-size: 16px; padding: 0 8px;
+                        border-radius: 8px; border: 1px solid var(--line);
+                        background: var(--bg); color: var(--ink); max-width: 190px; }
+  .custom-city input { width: 110px; height: 34px; font-size: 16px; padding: 0 8px;
+                       border-radius: 8px; border: 1px solid var(--line);
+                       background: var(--bg); color: var(--ink); }
+  .custom-city button { height: 34px; padding: 0 12px; font-size: 0.85rem;
+                        border-radius: 8px; border: 1px solid var(--line);
+                        background: var(--panel); color: var(--ink); cursor: pointer; }
+  .custom-city button:hover { background: var(--accent-soft); }
+  .custom-city .hint { flex: 1 0 100%; margin: 0; }
+
   td.grid-cell { position: relative; }
   .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
 
@@ -393,6 +409,18 @@
       <!-- populated from the city registry at init; see fillCitySelect() -->
       <select id="citySel"></select>
     </div>
+    <div class="custom-city" id="customCity" hidden>
+      <label for="customLat" id="customLatLabel"></label>
+      <input type="number" id="customLat" step="0.0001" min="-90" max="90" inputmode="decimal">
+      <label for="customLon" id="customLonLabel"></label>
+      <input type="number" id="customLon" step="0.0001" min="-180" max="180" inputmode="decimal">
+      <label for="customTz" id="customTzLabel"></label>
+      <select id="customTz"></select>
+      <button type="button" id="customApply"></button>
+      <button type="button" id="customLocate"></button>
+      <p class="hint" id="customError" hidden></p>
+      <p class="hint" id="customNote" style="margin-bottom:0;"></p>
+    </div>
     <div class="sun-moon-grid">
       <div class="moon-big" id="moonBig"></div>
       <div class="sun-times" id="sunTimes"></div>
@@ -529,7 +557,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=30636606"></script>
+<script src="strings-data.js?v=b14858e8"></script>
 <script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=11a84b9f"></script>
 <script src="solar.js?v=c15f28a9"></script>
@@ -954,6 +982,41 @@ function fillCitySelect() {
     }
     sel.appendChild(group);
   }
+  const custom = document.createElement("option");
+  custom.value = CUSTOM_CITY_KEY;
+  custom.textContent = t("city.custom", LANG);
+  sel.appendChild(custom);
+}
+
+/* --- an arbitrary point on Earth ----------------------------------------
+ *
+ * Everything downstream reads CITIES[key], so a custom location is just a
+ * synthetic registry entry injected at runtime. No other code changes: sun
+ * times, moonrise, the year's extremes and the grid badges all work unaltered.
+ *
+ * The timezone comes from the browser, because someone typing coordinates is
+ * almost always saying where they are. Getting that wrong shifts every time by
+ * whole hours, so it is stated on screen rather than left to be discovered.
+ *
+ * Custom locations deliberately get no feed: an .ics URL is permanent once
+ * subscribed, and a generated-on-demand one for arbitrary coordinates is a
+ * promise this app cannot keep while it is a static site.
+ */
+const CUSTOM_CITY_KEY = "__custom";
+
+function applyCustomLocation(lat, lon, tz) {
+  if (!isFinite(lat) || !isFinite(lon) ||
+      lat < -90 || lat > 90 || lon < -180 || lon > 180) return false;
+  CITIES[CUSTOM_CITY_KEY] = {
+    region: null, feed: false, lat, lon,
+    tz: tz || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    ar: t("city.customName", "ar"), en: t("city.customName", "en"),
+  };
+  selectedCity = CUSTOM_CITY_KEY;
+  // The extremes and event caches are keyed by city, so a changed coordinate
+  // under the same key would otherwise serve the previous location's answers.
+  _yearExtremeCache.clear(); _azimuthCache.clear(); _monthEventCache.clear();
+  return true;
 }
 
 function renderSunMoon(s) {
@@ -1100,7 +1163,52 @@ function renderMoonEvents(s) {
   $("citySelLabel").textContent = t("city.label", LANG);
   fillCitySelect();
   $("citySel").value = selectedCity;
+  /* Every IANA zone the browser knows, which is the only way to be exact
+   * without shipping a coordinate-to-timezone dataset. Getting this wrong does
+   * not shift times by minutes -- it shifts them by whole hours, which is how
+   * Quito first came out with sunrise at 13:17. */
+  (function fillTimezones() {
+    const sel = $("customTz");
+    const zones = (typeof Intl.supportedValuesOf === "function")
+      ? Intl.supportedValuesOf("timeZone")
+      : [Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"];
+    for (const z of zones) {
+      const o = document.createElement("option");
+      o.value = z; o.textContent = z.replace(/_/g, " ");
+      sel.appendChild(o);
+    }
+    sel.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  })();
+  $("customTzLabel").textContent = t("city.tz", LANG);
+  $("customLatLabel").textContent = t("city.lat", LANG);
+  $("customLonLabel").textContent = t("city.lon", LANG);
+  $("customApply").textContent = t("city.apply", LANG);
+  $("customLocate").textContent = t("city.locate", LANG);
+  $("customNote").textContent = t("city.customNote", LANG);
+  $("customError").textContent = t("city.badCoords", LANG);
+
+  const redraw = () => { renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); };
+  const commitCustom = () => {
+    const ok = applyCustomLocation(parseFloat($("customLat").value),
+                                   parseFloat($("customLon").value),
+                                   $("customTz").value);
+    $("customError").hidden = ok;
+    if (ok) redraw();
+  };
+  $("customApply").addEventListener("click", commitCustom);
+  $("customLocate").addEventListener("click", () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      $("customLat").value = pos.coords.latitude.toFixed(4);
+      $("customLon").value = pos.coords.longitude.toFixed(4);
+      commitCustom();
+    });
+  });
+
   $("citySel").addEventListener("change", () => {
+    const isCustom = $("citySel").value === CUSTOM_CITY_KEY;
+    $("customCity").hidden = !isCustom;
+    if (isCustom) { $("customError").hidden = true; return; }   // wait for Apply
     selectedCity = $("citySel").value;
     try { localStorage.setItem(CITY_STORE_KEY, selectedCity); } catch (e) { /* private mode */ }
     renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid();
