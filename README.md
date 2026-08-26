@@ -109,6 +109,35 @@ anywhere, from this repo, in about 190 ms a city.
 The old `borhom44.github.io/nasi-calendar/*` paths still 301 to the new domain,
 so nothing published before the move is broken.
 
+### Staying up
+
+Feeds are generated on request, so the site depends on `nasi-feeds.service`
+being alive. `nasi-health.timer` checks it every five minutes and tests the
+whole chain the way a subscriber does — public DNS, TLS, nginx, the proxy hop
+and the generator — because each layer can fail while the one below it still
+looks healthy. `Restart=on-failure` only catches the process exiting; a wedged
+worker, a dead nginx, or a certificate that quietly failed to renew all leave
+the unit `active` and every feed unreachable.
+
+It **repairs before it reports**: a failing feed gets the service restarted,
+then nginx reloaded, and only alerts if that did not fix it. Measured recovery
+from a stopped service: about 9 seconds.
+
+`https://nasi.ibrahimabdelrahim.cloud/healthz` returns `ok` in three bytes, for
+an external uptime monitor that should not pull 2.5 MB of calendar every few
+minutes.
+
+Alerting is opt-in. Create `/etc/nasi-health.conf` (root, mode 600):
+
+```
+TELEGRAM_TOKEN=...
+TELEGRAM_CHAT_ID=...
+```
+
+Without it the check logs to the journal and does nothing else. The token is
+passed to curl through `--config` on stdin, never on the command line, because
+argv is world-readable via `ps`.
+
 
 ## Month names (deliberate departure from the standard Hijri calendar)
 

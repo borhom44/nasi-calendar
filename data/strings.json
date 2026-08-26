@@ -824,6 +824,10 @@
     "conv.computedHidden": {
       "ar": "· (خارج جدول الكتاب — مخفي حسب إعدادك)",
       "en": "· (outside the book’s table — hidden by your setting)"
+    },
+    "sub.computerOnly": {
+      "ar": "أضِفه من كمبيوتر — تطبيق Google Calendar على الهاتف لا يستطيع إضافة اشتراك بالرابط. أضِفه مرة واحدة من الكمبيوتر وسيظهر على هاتفك تلقائياً بعد المزامنة.",
+      "en": "Add it from a computer — the Google Calendar phone app cannot add a subscription by URL. Do it once on a computer and it appears on your phone by itself once it syncs."
     }
   }
 }

@@ -210,6 +210,7 @@ const STRINGS = {
   "set.hideComputedHint": {"ar": "جدول الكتاب يغطي 1999-12-09 حتى 2100-12-31. خارجه تُحسب التواريخ من القاعدة المذكورة، وهي تُعرَض مميّزة. فعِّل هذا لإخفائها تماماً.", "en": "The book’s table covers 1999-12-09 to 2100-12-31. Outside it, dates are computed from the stated rule and shown marked. Turn this on to hide them entirely."},
   "grid.computedHidden": {"ar": "تواريخ النسيء لهذا الشهر خارج جدول الكتاب، وهي مخفيّة حسب إعدادك.", "en": "The Nasi’ dates this month fall outside the book’s table and are hidden, by your setting."},
   "conv.computedHidden": {"ar": "· (خارج جدول الكتاب — مخفي حسب إعدادك)", "en": "· (outside the book’s table — hidden by your setting)"},
+  "sub.computerOnly": {"ar": "أضِفه من كمبيوتر — تطبيق Google Calendar على الهاتف لا يستطيع إضافة اشتراك بالرابط. أضِفه مرة واحدة من الكمبيوتر وسيظهر على هاتفك تلقائياً بعد المزامنة.", "en": "Add it from a computer — the Google Calendar phone app cannot add a subscription by URL. Do it once on a computer and it appears on your phone by itself once it syncs."},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

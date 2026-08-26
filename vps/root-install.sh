@@ -124,6 +124,15 @@ server {
     gzip_proxied any;
     gzip_types text/calendar text/css application/javascript application/json image/svg+xml;
 
+    # A monitor can poll this instead of pulling 2.5 MB of calendar every
+    # few minutes. It proves nginx and the generator are both alive; the
+    # deeper "is the feed actually a calendar" test is nasi-health.timer's job.
+    location = /healthz {
+        proxy_pass http://127.0.0.1:8971/healthz;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
     # Feeds are generated per request, never stored. The service is on
     # loopback, so it is reachable only through this proxy.
     location /data/ {
@@ -179,6 +188,47 @@ if systemctl is-active --quiet ufw; then
   ufw status | sed 's/^/     /'
 else
   echo "[3c] ufw inactive, nothing to open"
+fi
+
+# --------------------------------------------- 3d. the health check timer
+# The script is COPIED to root-owned storage rather than run from the repo.
+# nasi-feeds runs as `personal`, so a root timer executing a personal-writable
+# file would hand anything that compromised the web service a clean path to
+# root. Re-run this installer after editing vps/healthcheck.sh to refresh it.
+install -o root -g root -m 0755 "$REPO/vps/healthcheck.sh" /usr/local/sbin/nasi-healthcheck
+install -d -o root -g root -m 0755 /var/lib/nasi-health
+
+cat >/etc/systemd/system/nasi-health.service <<'UNIT'
+[Unit]
+Description=Nasi calendar end-to-end health check
+After=network-online.target nginx.service nasi-feeds.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nasi-healthcheck
+UNIT
+
+cat >/etc/systemd/system/nasi-health.timer <<'UNIT'
+[Unit]
+Description=Run the Nasi calendar health check every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Unit=nasi-health.service
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now nasi-health.timer >/dev/null 2>&1 || die "could not enable nasi-health.timer"
+echo "[3d] health check installed; running it once now"
+if systemctl start nasi-health.service; then
+  echo "     first run passed"
+else
+  echo "     first run REPORTED A PROBLEM -- journalctl -u nasi-health -n 30"
 fi
 
 # ------------------------------- 4. prove it serves BEFORE any DNS change

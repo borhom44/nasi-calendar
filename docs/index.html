@@ -444,6 +444,8 @@
   #subscribe.is-dimmed .sub-actions,
   #subscribe.is-dimmed .sub-row,
   #subscribe.is-dimmed details.sub-how { opacity: 0.4; pointer-events: none; }
+  .sub-note { border-inline-start: 3px solid var(--accent); padding-inline-start: 10px;
+              margin: 0 0 10px; }
   details.sub-how { margin-top: 12px; }
   details.sub-how > summary { cursor: pointer; font-size: 0.85rem; color: var(--accent);
                               list-style: none; }
@@ -517,6 +519,11 @@
       <a class="btn-quiet" id="subAddApple" data-i18n="sub.addApple"></a>
       <button type="button" class="btn-quiet sub-copy" data-target="subUrl" id="subCopy" data-i18n="sub.copy"></button>
     </div>
+
+    <!-- Not buried in the disclosure below: someone tapping "Add to Google
+         Calendar" on a phone hits this immediately, and the phone is exactly
+         where they will not think to expand a collapsed section. -->
+    <p class="hint sub-note" data-i18n="sub.computerOnly"></p>
 
     <div class="sub-row">
       <code class="sub-url" id="subUrl"></code>
@@ -749,7 +756,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=5eb1d2d9"></script>
+<script src="strings-data.js?v=8a2e8bac"></script>
 <script src="cities-data.js?v=1af891a4"></script>
 <script src="moon.js?v=a4abf928"></script>
 <script src="solar.js?v=4961c053"></script>
