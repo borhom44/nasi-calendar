@@ -236,6 +236,9 @@ function cityYearExtremes(cityKey, year) {
   const city = CITIES[cityKey];
   let longest = null, shortest = null, earliestSunset = null, latestSunrise = null;
 
+  // One offset for the whole year -- see the note in the loop below.
+  const refOffsetMs = _tzOffsetMs(Date.UTC(year, 11, 21), city.tz);
+
   for (let doy = 0; doy < 366; doy++) {
     const iso = jdToISO(_jdUTC(year, 1, 1) + doy);
     if (!iso.startsWith(String(year))) break;
@@ -246,16 +249,21 @@ function cityYearExtremes(cityKey, year) {
     if (!longest || len > longest.seconds) longest = { iso, seconds: len };
     if (!shortest || len < shortest.seconds) shortest = { iso, seconds: len };
 
-    // Compare clock time of day in the city's own zone, not the UTC instant.
-    const local = (d) => {
-      const p = new Intl.DateTimeFormat("en-GB", {
-        timeZone: city.tz, hour: "2-digit", minute: "2-digit",
-        second: "2-digit", hour12: false,
-      }).formatToParts(d);
-      const g = (t) => +p.find((x) => x.type === t).value;
-      return g("hour") * 3600 + g("minute") * 60 + g("second");
-    };
-    const setAt = local(times.sunset), riseAt = local(times.sunrise);
+    /* Compared against a FIXED offset, not the zone's actual offset that day.
+     *
+     * Using the real local clock lets a daylight-saving jump masquerade as the
+     * extreme: when clocks go back, sunset lands an hour earlier on the clock
+     * overnight. Morocco is the clear case -- it drops an hour for Ramadan --
+     * and the earliest sunset of 2026 came out as 15 February instead of
+     * 4 December, a ten-month error in a figure the app presents as a fact.
+     *
+     * Any constant offset gives the same answer, since a constant shifts every
+     * day equally; midwinter's is used so sunset sits near the middle of the
+     * shifted day and cannot wrap past midnight. Earliest sunset is a claim
+     * about the equation of time, which is astronomy -- a civil clock change
+     * has no business in it. */
+    const setAt = (times.sunset.getTime() + refOffsetMs) % 86400000 / 1000;
+    const riseAt = (times.sunrise.getTime() + refOffsetMs) % 86400000 / 1000;
     if (!earliestSunset || setAt < earliestSunset.secondsOfDay)
       earliestSunset = { iso, secondsOfDay: setAt };
     if (!latestSunrise || riseAt > latestSunrise.secondsOfDay)

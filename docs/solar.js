@@ -83,6 +83,31 @@ function sunTimes(iso, cityKey) {
  * generated strings-data.js for [key, label] pairs in display order -- this
  * file computes instants and knows nothing about how they are worded. */
 
+/* Why an event is missing, which is NOT always the same reason.
+ *
+ * Any null used to be reported as a white night. That is right for first light
+ * and full darkness above 48.56 deg, but at a polar latitude a missing SUNRISE
+ * means the sun never came up at all -- the exact opposite. Svalbard on 21
+ * December was being told it had no darkness while sitting in permanent night.
+ *
+ * Both follow from the sun's altitude at the two culminations:
+ *   upper (local noon)     90 - |lat - dec|
+ *   lower (local midnight) |lat + dec| - 90
+ */
+function sunSituation(iso, cityKey) {
+  const city = CITIES[cityKey];
+  const y = +iso.slice(0, 4), m = +iso.slice(5, 7), d = +iso.slice(8, 10);
+  const jd = _jdUTC(y, m, d) + 0.5 - city.lon / 360.0;
+  const { decl } = _solarParams(jd);
+  const noonAlt = 90 - Math.abs(city.lat - decl);
+  const midnightAlt = Math.abs(city.lat + decl) - 90;
+  return {
+    polarNight: noonAlt < SUN_DISC,        // the sun never clears the horizon
+    polarDay: midnightAlt > SUN_DISC,      // the sun never drops below it
+    whiteNight: midnightAlt > TWILIGHT && midnightAlt <= SUN_DISC,
+  };
+}
+
 function fmtLocal(date, tz) {
   if (!date) return "--:--";
   return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(date);

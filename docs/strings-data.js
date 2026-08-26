@@ -176,6 +176,10 @@ const STRINGS = {
   "moon.waning": {"ar": "متناقص", "en": "waning"},
   "ui.colCalendar": {"ar": "التقويم", "en": "Calendar"},
   "ui.colDay": {"ar": "اليوم", "en": "Day"},
+  "sun.polarDay": {"ar": "الشمس لا تغيب اليوم", "en": "The sun does not set today"},
+  "sun.polarNight": {"ar": "الشمس لا تشرق اليوم", "en": "The sun does not rise today"},
+  "sun.polarDayShort": {"ar": "لا تغيب", "en": "no set"},
+  "sun.polarNightShort": {"ar": "لا تشرق", "en": "no rise"},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

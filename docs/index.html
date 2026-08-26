@@ -564,25 +564,26 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=4c1a6462"></script>
+<script src="strings-data.js?v=9e7c05f8"></script>
 <script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=a4abf928"></script>
-<script src="solar.js?v=c15f28a9"></script>
+<script src="solar.js?v=cae692b4"></script>
 <script src="moon-events.js?v=1e5c5a4e"></script>
 <script src="eclipses-data.js?v=152d4b3a"></script>
 <script src="faq-data.js?v=3a63d0e1"></script>
 <!-- must load after nasi-calendar.js (addDays/daysBetween/NASI_RANGE) and
      moon-events.js (moonPhaseJDE/greg2JD) -- it builds on both -->
-<script src="nasi-extend.js?v=9d8fb601"></script>
+<script src="nasi-extend.js?v=2436b314"></script>
 <!-- needs nasi-calendar.js (nasiToGregorian), nasi-extend.js (NASI_INTERCALARY)
      and hijri.js (hijriToGregorian), so it loads after all three -->
 <!-- sky-events needs solar.js + nasi-extend.js; moon-position needs
      sky-events (solarLongitude, sunDistanceAU). Neither runs at load. -->
-<script src="sky-events.js?v=ff91ba66"></script>
+<script src="sky-events.js?v=880b9e00"></script>
 <script src="moon-position.js?v=837969fd"></script>
 <script src="eclipse-events.js?v=ac7f8c55"></script>
-<script src="day-events.js?v=8cc570eb"></script>
+<!-- cycles.js first: day-events.js calls metonicPosition() -->
 <script src="cycles.js?v=0f1468f8"></script>
+<script src="day-events.js?v=8cc570eb"></script>
 <script src="faq.js?v=0c9af285"></script>
 <script>
 const NASI_ORDER = ["صفر الأول","صفر الثاني","ربيع الأول","ربيع الثاني","جمادى الأولى","جمادى الثانية",
@@ -1137,22 +1138,35 @@ function renderSunMoon(s) {
   const city = CITIES[selectedCity];
   const times = sunTimes(s, selectedCity);
 
-  /* Above 48.56 deg N the sun never reaches -18 at midsummer, so there is
-   * genuinely no astronomical night: first light and full darkness DO NOT
-   * OCCUR. That is a fact about the sky, not a gap in the data, so it is
-   * named rather than shown as a blank or a dash. Berlin has 69 such days
-   * a year, London 59, Paris 19. */
-  const noNight = times.firstLight === null || times.fullDark === null;
+  /* A missing event has more than one cause and they are opposites.
+   *
+   * Above 48.56 deg the sun never reaches -18 at midsummer, so there is no
+   * astronomical night and first light and full darkness genuinely do not
+   * occur -- Berlin has 69 such days a year, London 59, Paris 19. But inside
+   * a polar circle a missing SUNRISE means the sun never came up at all.
+   * Reporting either as "white night" told Svalbard in December that it had
+   * no darkness while it sat in permanent night. */
+  const sit = sunSituation(s, selectedCity);
+  const missingLabel = (key) => {
+    if (key === "sunrise" || key === "sunset") {
+      return t(sit.polarNight ? "sun.polarNightShort" : "sun.polarDayShort", LANG);
+    }
+    return t(sit.polarNight ? "sun.polarNightShort" : "sun.noNightShort", LANG);
+  };
 
   $("sunTimes").innerHTML = sunEvents(LANG).map(([key, label]) =>
     `<div class="cell"><div class="t${times[key] ? "" : " na"}">` +
-    `${times[key] ? fmtLocal(times[key], city.tz) : t("sun.noNightShort", LANG)}</div>` +
+    `${times[key] ? fmtLocal(times[key], city.tz) : missingLabel(key)}</div>` +
     `<div class="l">${label}</div></div>`
   ).join("");
 
+  const noteKey = sit.polarNight ? "sun.polarNight"
+                : sit.polarDay ? "sun.polarDay"
+                : (times.firstLight === null || times.fullDark === null) ? "sun.noNight"
+                : null;
   const note = $("whiteNightNote");
-  note.textContent = noNight ? t("sun.noNight", LANG) : "";
-  note.hidden = !noNight;
+  note.textContent = noteKey ? t(noteKey, LANG) : "";
+  note.hidden = !noteKey;
 
   renderDayDetail(s);
 }

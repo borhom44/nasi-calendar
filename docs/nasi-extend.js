@@ -112,6 +112,24 @@ let _extended = null;
 function extendedMonths() {
   if (_extended) return _extended;
   _extended = NASI_MONTHS.map((m) => ({ ...m, computed: false }));
+
+  /* The table's LAST month is truncated by the table's own edge, not short in
+   * reality: it prints as start 2100-12-31, len 1. Left that way the month
+   * after it began wherever the computed rule put it, which is not necessarily
+   * the next day -- so 2101-01-01 fell into a one-day hole and the converter
+   * returned null for a date well inside the advertised 1600-2200 range.
+   *
+   * Give it the length the rule says that lunation actually runs, so the
+   * extension continues from the right place. This changes no date INSIDE the
+   * table: the month's start and its first `len` days are untouched. */
+  const last = _extended[_extended.length - 1];
+  const kLast = kSeedFromISO(last.start);
+  const trueLen = daysBetween(last.start, jdToISO(computedMonthStartJD(kLast + 1)));
+  if (trueLen > last.len) {
+    last.len = trueLen;
+    last._k = kLast;
+    last.truncatedInTable = true;   // the tail days are computed, not printed
+  }
   return _extended;
 }
 
@@ -155,7 +173,17 @@ function ensureCovers(iso) {
     const first = arr[0];
     if (first.start <= iso) break;
     const k = first._k !== undefined ? first._k : kSeedFromISO(first.start);
-    arr.unshift(prevComputedMonth(first, k));
+    const m = prevComputedMonth(first, k);
+
+    /* Clamp the seam. The computed rule places a month where IT thinks the
+     * lunation begins, which need not be the day before the table's first
+     * month -- 1999-12-08 fell in the gap and returned null. Ending the month
+     * exactly where the next one starts closes it without touching the count
+     * of lunations, which _k still carries. */
+    const gap = daysBetween(m.start, first.start);
+    if (gap > 0 && gap !== m.len) m.len = gap;
+
+    arr.unshift(m);
   }
   return arr;
 }
@@ -175,5 +203,11 @@ function gregorianToNasiExtended(isoDate) {
   if (ans < 0) return null;
   const m = arr[ans];
   if (isoDate > addDays(m.start, m.len - 1)) return null;
-  return { ny: m.ny, nm: m.nm, nd: daysBetween(m.start, isoDate) + 1, computed: !!m.computed };
+  /* Outside the printed range the date is computed whatever month object it
+   * came from. The table's last month is truncated by the table's edge, so
+   * its tail days live in a table month but are NOT in the book -- reporting
+   * them as printed would suppress the extrapolation warning. */
+  const computed = !!m.computed ||
+    isoDate < NASI_RANGE.min || isoDate > NASI_RANGE.max;
+  return { ny: m.ny, nm: m.nm, nd: daysBetween(m.start, isoDate) + 1, computed };
 }
