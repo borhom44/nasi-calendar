@@ -3,3 +3,10 @@
 # generated one did not -- Google tolerates LF, Apple Calendar and Outlook are
 # stricter. -text stores these byte-for-byte as generated.
 *.ics -text
+
+# Shell and Python run on the Linux box. Git's autocrlf would hand a Windows
+# clone CRLF copies, and a CRLF shebang line makes the kernel look for an
+# interpreter literally named "bash\r" -- which fails with a message that
+# points nowhere near the real cause.
+*.sh text eol=lf
+*.py text eol=lf
