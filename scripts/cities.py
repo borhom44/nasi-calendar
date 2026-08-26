@@ -99,6 +99,12 @@ def by_region():
 
 
 if __name__ == "__main__":
+    import sys
+    # Arabic output on a cp1252 Windows console raises otherwise.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
     print(f"{len(CITIES)} cities in {len(REGIONS)} regions, all valid")
     for region, members in by_region():
         names = ", ".join(c["en"] for c in members)

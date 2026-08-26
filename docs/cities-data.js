@@ -1,11 +1,11 @@
 /* GENERATED FILE -- do not edit.
  *
- * Emitted from data/cities.json by scripts/build_web.py. Edit the JSON and
- * re-run that script; anything typed here is overwritten without warning.
+ * Emitted from data/cities.json by scripts/build_web.py. Edit that file and
+ * re-run the script; anything typed here is overwritten without warning.
  *
- * `CITIES` is the same global the app has always used, so solar.js and
- * moon-events.js keep working unchanged -- it is simply no longer hand-written
- * in two places that could disagree about a coordinate.
+ * `CITIES` is the same global the app has always used, so solar.js
+ * and moon-events.js keep working unchanged -- it is simply no longer
+ * hand-written in two places that could disagree about a coordinate.
  */
 
 const NASI_REGIONS = [{"key": "egypt_levant", "ar": "مصر والشام", "en": "Egypt & the Levant"}, {"key": "gulf", "ar": "الخليج", "en": "The Gulf"}, {"key": "north_africa", "ar": "شمال أفريقيا", "en": "North Africa"}, {"key": "europe", "ar": "أوروبا", "en": "Europe"}, {"key": "americas", "ar": "الأمريكتان", "en": "The Americas"}, {"key": "asia", "ar": "آسيا", "en": "Asia"}];

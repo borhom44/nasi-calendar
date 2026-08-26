@@ -79,14 +79,9 @@ function sunTimes(iso, cityKey) {
   };
 }
 
-/* The four events in display order, as [key, Arabic label]. Single source of
- * truth -- the app and the .ics generator must not drift apart on wording. */
-const SUN_EVENTS = [
-  ["firstLight", "أول الضوء"],
-  ["sunrise",    "الشروق"],
-  ["sunset",     "الغروب"],
-  ["fullDark",   "الظلام التام"],
-];
+/* Labels live in data/strings.json, not here. Call sunEvents(lang) from the
+ * generated strings-data.js for [key, label] pairs in display order -- this
+ * file computes instants and knows nothing about how they are worded. */
 
 function fmtLocal(date, tz) {
   if (!date) return "--:--";

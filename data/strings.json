@@ -1,0 +1,46 @@
+{
+  "_comment": [
+    "THE string table. Every user-visible label lives here with both languages",
+    "side by side, so the two can never drift: a wording change is one row edited",
+    "twice, in view of each other, rather than two files edited weeks apart.",
+    "",
+    "docs/strings-data.js is GENERATED from this by scripts/build_web.py. Never",
+    "edit that file. The .ics generator reads this same table, so a feed and the",
+    "screen cannot disagree about what an event is called.",
+    "",
+    "Strings are added as the feature that needs them is written -- authoring both",
+    "columns at the moment of writing costs almost nothing, while retrofitting",
+    "English later means re-reading every string and recovering its context.",
+    "Pre-existing Arabic elsewhere in the app is migrated in Phase 4.",
+    "",
+    "Validation (scripts/strings.py) rejects a row missing either language, so a",
+    "half-translated key cannot ship silently as a blank on screen."
+  ],
+
+  "strings": {
+    "sun.firstLight":   { "ar": "أول الضوء",    "en": "First light" },
+    "sun.sunrise":      { "ar": "الشروق",        "en": "Sunrise" },
+    "sun.sunset":       { "ar": "الغروب",        "en": "Sunset" },
+    "sun.fullDark":     { "ar": "الظلام التام",  "en": "Full darkness" },
+
+    "sun.noNight":      { "ar": "لا يحل الظلام التام الليلة",
+                          "en": "No astronomical night tonight" },
+    "sun.noNightShort": { "ar": "ليل أبيض", "en": "White night" },
+    "sun.dayLength":    { "ar": "طول النهار", "en": "Day length" },
+    "sun.twilight":     { "ar": "مدة الشفق",  "en": "Twilight" },
+    "sun.longerBy":     { "ar": "أطول بـ",     "en": "longer by" },
+    "sun.shorterBy":    { "ar": "أقصر بـ",     "en": "shorter by" },
+
+    "unit.hour":        { "ar": "س",  "en": "h" },
+    "unit.minute":      { "ar": "د",  "en": "m" },
+    "unit.second":      { "ar": "ث",  "en": "s" },
+    "unit.km":          { "ar": "كم", "en": "km" },
+
+    "city.label":       { "ar": "المدينة:", "en": "City:" },
+
+    "app.name":         { "ar": "التقويم النسيء", "en": "Nasi’ Calendar" },
+    "feed.calendarName":{ "ar": "التقويم النسيء — {city}",
+                          "en": "Nasi’ Calendar — {city}" },
+    "feed.eventInCity": { "ar": "{event} في {city}", "en": "{event} in {city}" }
+  }
+}

@@ -30,7 +30,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from solar_times import sun_times, hhmm, SUN_EVENTS  # noqa: E402
+from solar_times import sun_times, hhmm  # noqa: E402
+from strings import sun_events, t as tr, fmt  # noqa: E402
 from cities import CITIES, DATA, label as city_label  # noqa: E402
 from generate_moon_phases import new_moon_jde, greg_to_jd, _args, _planetary, RAD  # noqa: E402
 
@@ -122,7 +123,7 @@ def fold(line):
     return "\r\n ".join(out)
 
 
-def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"):
+def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang="ar"):
     # lang selects the display language for every label in the feed. It is a
     # parameter rather than a constant because Phase 2 generates one feed per
     # city per language from this same code path -- no wording is hardcoded.
@@ -139,7 +140,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"
         # though the largest audience will not act on them.
         "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
         "X-PUBLISHED-TTL:PT12H",
-        fold(f"X-WR-CALNAME:التقويم النسيء — {city_label(city, lang)}"),
+        fold("X-WR-CALNAME:" + escape_ics(fmt("feed.calendarName", lang, city=city_label(city, lang)))),
         fold("X-WR-CALDESC:تقويم النسيء مع أوقات الشمس وأحداث القمر. "
              "التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA) "
              "وأحداث الخسوف من كتالوج ناسا."),
@@ -162,7 +163,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"
         # Built from SUN_EVENTS so the description, the timed entries below and
         # the app's own panel can never disagree about wording or order.
         desc_parts = [
-            " · ".join(f"{label} {hhmm(t[key])}" for key, label in SUN_EVENTS)
+            " · ".join(f"{label} {hhmm(t[key])}" for key, label in sun_events(lang))
             + f"  ({city_label(city, lang)})",
         ]
         if illum is not None:
@@ -197,8 +198,8 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"
         # TRANSP:TRANSPARENT matters more here than anywhere else -- four opaque
         # events a day would make the reader permanently "busy" to anyone
         # checking their free/busy.
-        if sun_events:
-            for key, label in SUN_EVENTS:
+        if with_sun_events:
+            for key, label in sun_events(lang):
                 when = t.get(key)
                 if when is None:          # undefined at high latitude; skip it
                     continue
@@ -210,7 +211,7 @@ def build(days, moon, eclipses, city_key, start, end, sun_events=True, lang="ar"
                     f"DTSTART:{z}",
                     f"DTEND:{z}",
                     fold(f"SUMMARY:{escape_ics(label)}"),
-                    fold(f"DESCRIPTION:{escape_ics(f'{label} في {city_label(city, lang)}')}"),
+                    fold("DESCRIPTION:" + escape_ics(fmt("feed.eventInCity", lang, event=label, city=city_label(city, lang)))),
                     "TRANSP:TRANSPARENT",
                     "END:VEVENT",
                 ]
@@ -289,7 +290,7 @@ def main():
     eclipses = json.load(open(ECLIPSE_JSON, encoding="utf-8"))
 
     ics, nd, nm, ne, ns = build(days, moon, eclipses, a.city, start, end,
-                                sun_events=not a.no_sun_events)
+                                with_sun_events=not a.no_sun_events)
     with open(a.out, "w", encoding="utf-8", newline="") as f:
         f.write(ics)
     total = nd + nm + ne + ns

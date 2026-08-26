@@ -364,7 +364,7 @@
   <section class="panel">
     <h2>القمر والشمس</h2>
     <div class="city-row">
-      <label for="citySel" style="color:var(--muted);font-size:0.85rem;">المدينة:</label>
+      <label for="citySel" id="citySelLabel" style="color:var(--muted);font-size:0.85rem;"></label>
       <!-- populated from the city registry at init; see fillCitySelect() -->
       <select id="citySel"></select>
     </div>
@@ -472,9 +472,10 @@
 <script src="moon-phases-data.js?v=2c2f8b6e"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="cities-data.js?v=ad08f698"></script>
+<script src="strings-data.js?v=cc220c6f"></script>
+<script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=11a84b9f"></script>
-<script src="solar.js?v=54275f0f"></script>
+<script src="solar.js?v=c15f28a9"></script>
 <script src="moon-events.js?v=0baa5099"></script>
 <script src="eclipses-data.js?v=152d4b3a"></script>
 <script src="faq-data.js?v=ef20068d"></script>
@@ -719,7 +720,7 @@ function renderSunMoon(s) {
 
   const city = CITIES[selectedCity];
   const t = sunTimes(s, selectedCity);
-  $("sunTimes").innerHTML = SUN_EVENTS.map(([key, label]) =>
+  $("sunTimes").innerHTML = sunEvents(LANG).map(([key, label]) =>
     `<div class="cell"><div class="t">${fmtLocal(t[key], city.tz)}</div><div class="l">${label}</div></div>`
   ).join("");
 }
@@ -786,6 +787,7 @@ function renderMoonEvents(s) {
   $("navMonth").addEventListener("change", () => gotoMonth(viewYear, +$("navMonth").value));
   $("navYear").addEventListener("change", () => gotoMonth(+$("navYear").value, viewMonth));
   $("todayBtn").addEventListener("click", () => setDate(todayISO()));
+  $("citySelLabel").textContent = t("city.label", LANG);
   fillCitySelect();
   $("citySel").value = selectedCity;
   $("citySel").addEventListener("change", () => {

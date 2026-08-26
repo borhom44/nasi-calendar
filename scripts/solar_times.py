@@ -39,14 +39,9 @@ TWILIGHT = -18.0        # astronomical twilight, both ends
 # Latitude above which midsummer has no astronomical night at all.
 WHITE_NIGHT_LAT = 90.0 - 23.44 - 18.0     # 48.56
 
-# The four events in display order, as (key, Arabic label). Single source of
-# truth -- docs/solar.js carries the same list and the two must not drift.
-SUN_EVENTS = (
-    ("first_light", "أول الضوء"),
-    ("sunrise", "الشروق"),
-    ("sunset", "الغروب"),
-    ("full_dark", "الظلام التام"),
-)
+# Labels live in data/strings.json; import sun_events(lang) from strings.py.
+# This module computes instants and knows nothing about how they are worded,
+# which is what lets one code path emit a feed in any language.
 
 
 def _solar_params(jd):
