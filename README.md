@@ -54,11 +54,11 @@ Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
 
 | Span | Range | Events | Size | Timed sun events | Import? | Subscribe? |
 |------|-------|-------:|-----:|------------------|---------|------------|
-| `-1y`   | rolling ±1 yr | 3,710  | 0.92 MB | yes | no | yes |
 | `-5y`   | 2026–2030     | 9,266  | 2.3 MB  | yes | no | yes |
-| `-100y` | 2000–2100     | 39,619 | 12.7 MB | **no** | no | yes |
 
-Every feed now carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
+Only the 5-year span ships. The 1-year and 100-year feeds were retired: importing rather than subscribing is unusable at any span, and at four sun events a day the 100-year file is ~55 MB re-fetched daily by every subscriber. Each city now has one feed per language -- Arabic keeps the historic unsuffixed name because it is already subscribed to, English takes a `-en` suffix.
+
+Every feed carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
 at their exact instants, so they land in the day grid rather than being buried in
 an all-day banner's description. That is 4× the events, which is affordable over
 five years and not over a century: the 100-year feed is generated with
@@ -184,7 +184,7 @@ Google Calendar's manual **Import** screen has an undocumented soft cap around
 ~1,000 events per file.
 
 - **Import directly** (works today, no hosting needed): Settings → Import &
-  Export → upload `docs/data/nasi-cairo-full-1y.ics` (or the Barcelona one). 786
+  Export → upload `docs/data/nasi-cairo-full-5y.ics` (or the Barcelona one). 786
   events: 731 daily Nasi' dates carrying that city's fajr/sunrise/sunset/isha
   and the moon's illumination in the description, plus 49 exact new/full-moon
   instants and 6 real lunar eclipses as timed events.

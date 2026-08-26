@@ -83,6 +83,13 @@ const STRINGS = {
   "cycles.fullMoonCycle": {"ar": "دورة البدر الكامل", "en": "Full moon cycle"},
   "cycles.fullMoonCycleWhat": {"ar": "٤١١٫٧٨ يوماً: المدة التي يعود بعدها البدر ليتزامن مع أقرب نقطة في مدار القمر. هذه هي حقيقة «موسم القمر العملاق».", "en": "411.78 days: the beat between the anomalistic and synodic months, after which full moon again coincides with perigee. That is what a “supermoon season” actually is."},
   "cycles.moonTitle": {"ar": "دورات القمر الطويلة", "en": "The Moon’s long cycles"},
+  "sub.language": {"ar": "اللغة", "en": "Language"},
+  "sub.city": {"ar": "المدينة", "en": "City"},
+  "sub.copy": {"ar": "نسخ", "en": "Copy"},
+  "sub.copied": {"ar": "تم النسخ ✓", "en": "Copied ✓"},
+  "lang.ar": {"ar": "العربية", "en": "Arabic"},
+  "lang.en": {"ar": "الإنجليزية", "en": "English"},
+  "sub.moreCities": {"ar": "المدن الأخرى متاحة داخل التطبيق الآن، وستحصل على روابط اشتراك خاصة بها عند نقل الاستضافة.", "en": "The other cities work inside the app already; they get their own subscription links when hosting moves."},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

@@ -176,6 +176,8 @@
     border-radius: 8px; padding: 8px 10px;
   }
   #subscribe .sub-label { font-weight: 600; font-size: 0.85rem; min-width: 62px; }
+  #subscribe select { height: 34px; border-radius: 8px; border: 1px solid var(--line);
+                     background: var(--bg); color: var(--ink); font-size: 16px; padding: 0 8px; }
   /* the URL is LTR inside an RTL page, and scrolls in its own box rather than
    * widening the page -- a 66-character URL cannot wrap without becoming
    * impossible to copy by eye */
@@ -454,15 +456,16 @@
     </p>
 
     <div class="sub-row">
-      <span class="sub-label">القاهرة</span>
-      <code class="sub-url" id="urlCairo">https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics</code>
-      <button class="sub-copy" data-target="urlCairo">نسخ</button>
+      <span class="sub-label" id="subLangLabel"></span>
+      <select id="subLang"></select>
+      <span class="sub-label" id="subCityLabel"></span>
+      <select id="subCity"></select>
     </div>
     <div class="sub-row">
-      <span class="sub-label">برشلونة</span>
-      <code class="sub-url" id="urlBarcelona">https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics</code>
-      <button class="sub-copy" data-target="urlBarcelona">نسخ</button>
+      <code class="sub-url" id="subUrl"></code>
+      <button class="sub-copy" data-target="subUrl" id="subCopy"></button>
     </div>
+    <p class="hint" id="subMoreCities" style="margin-top:-4px;"></p>
 
     <ol class="sub-steps">
       <li>انسخ رابط مدينتك من الأعلى.</li>
@@ -526,7 +529,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=4a8d5c40"></script>
+<script src="strings-data.js?v=30636606"></script>
 <script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=11a84b9f"></script>
 <script src="solar.js?v=c15f28a9"></script>
@@ -1137,6 +1140,53 @@ function renderMoonEvents(s) {
       target.scrollIntoView({ block: "start" });
     }
   }
+
+  /* --- the subscribe picker --------------------------------------------
+   * Only cities with a generated feed appear. The app knows about all 33, but
+   * offering a link that 404s is worse than not offering it, and an .ics URL
+   * once copied into someone's calendar cannot be corrected afterwards. */
+  const FEED_BASE = "https://nasi.ibrahimabdelrahim.cloud/data/";
+  function feedFileName(cityKey, lang) {
+    // Arabic keeps the historic unsuffixed name -- it is already subscribed to.
+    const base = `nasi-${cityKey}-full-5y`;
+    return lang === "ar" ? `${base}.ics` : `${base}-${lang}.ics`;
+  }
+  function refreshSubUrl() {
+    $("subUrl").textContent =
+      FEED_BASE + feedFileName($("subCity").value, $("subLang").value);
+  }
+  (function initSubscribePicker() {
+    $("subLangLabel").textContent = t("sub.language", LANG);
+    $("subCityLabel").textContent = t("sub.city", LANG);
+    $("subCopy").textContent = t("sub.copy", LANG);
+    $("subMoreCities").textContent = t("sub.moreCities", LANG);
+
+    const langSel = $("subLang");
+    for (const code of ["ar", "en"]) {
+      const o = document.createElement("option");
+      o.value = code; o.textContent = t("lang." + code, LANG);
+      langSel.appendChild(o);
+    }
+    langSel.value = LANG;
+
+    const citySel = $("subCity");
+    for (const { region, cities } of citiesByRegion(true)) {
+      const g = document.createElement("optgroup");
+      g.label = region[LANG] || region.ar;
+      for (const key of cities) {
+        const o = document.createElement("option");
+        o.value = key; o.textContent = cityLabel(key, LANG);
+        g.appendChild(o);
+      }
+      citySel.appendChild(g);
+    }
+    citySel.value = CITIES[selectedCity] && CITIES[selectedCity].feed
+      ? selectedCity : citiesByRegion(true)[0].cities[0];
+
+    langSel.addEventListener("change", refreshSubUrl);
+    citySel.addEventListener("change", refreshSubUrl);
+    refreshSubUrl();
+  })();
 
   document.querySelectorAll(".sub-copy").forEach((btn) => {
     btn.addEventListener("click", async () => {

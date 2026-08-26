@@ -316,6 +316,34 @@
     "cycles.moonTitle": {
       "ar": "دورات القمر الطويلة",
       "en": "The Moon’s long cycles"
+    },
+    "sub.language": {
+      "ar": "اللغة",
+      "en": "Language"
+    },
+    "sub.city": {
+      "ar": "المدينة",
+      "en": "City"
+    },
+    "sub.copy": {
+      "ar": "نسخ",
+      "en": "Copy"
+    },
+    "sub.copied": {
+      "ar": "تم النسخ ✓",
+      "en": "Copied ✓"
+    },
+    "lang.ar": {
+      "ar": "العربية",
+      "en": "Arabic"
+    },
+    "lang.en": {
+      "ar": "الإنجليزية",
+      "en": "English"
+    },
+    "sub.moreCities": {
+      "ar": "المدن الأخرى متاحة داخل التطبيق الآن، وستحصل على روابط اشتراك خاصة بها عند نقل الاستضافة.",
+      "en": "The other cities work inside the app already; they get their own subscription links when hosting moves."
     }
   }
 }
