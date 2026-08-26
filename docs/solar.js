@@ -110,5 +110,19 @@ function sunSituation(iso, cityKey) {
 
 function fmtLocal(date, tz) {
   if (!date) return "--:--";
-  return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  // NASI_CLOCK12 and nasiMeridiem are set by the app; this file loads first, so
+  // both are read defensively and 24-hour is the behaviour without them.
+  const h12 = typeof NASI_CLOCK12 !== "undefined" && NASI_CLOCK12;
+  if (!h12) {
+    return new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  }
+  // The am/pm marker is translated rather than taken from the locale: en-GB
+  // keeps the Western digits the whole app uses, but would print "am" on an
+  // Arabic screen where the reader expects ص.
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true,
+  }).formatToParts(date);
+  const get = (k) => (parts.find((x) => x.type === k) || {}).value || "";
+  const mark = typeof nasiMeridiem === "function" ? nasiMeridiem(get("dayPeriod")) : get("dayPeriod");
+  return `${get("hour")}:${get("minute")} ${mark}`.trim();
 }

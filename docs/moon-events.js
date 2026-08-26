@@ -96,12 +96,19 @@ function fmtLocalDateTime(date, tz) {
   // en-GB, not ar-EG: an Arabic locale renders Arabic-Indic numerals and the
   // grid, the sun panel and the cycles tab all use Western digits. Two numeral
   // systems on one screen reads as a bug.
+  const h12 = typeof NASI_CLOCK12 !== "undefined" && NASI_CLOCK12;
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
+    hour: h12 ? "numeric" : "2-digit", minute: "2-digit", hour12: h12,
   }).formatToParts(date);
-  const g = (t) => parts.find(p => p.type === t).value;
-  return `${g("day")}/${g("month")}/${g("year")} – ${g("hour")}:${g("minute")}`;
+  const g = (t) => (parts.find(p => p.type === t) || {}).value || "";
+  // Without this the 12-hour form would read "26/08/2026 - 5:05" and leave the
+  // reader to guess which 5:05. The marker is translated, not taken from the
+  // locale, so an Arabic screen gets ص rather than "am".
+  const mark = h12
+    ? " " + (typeof nasiMeridiem === "function" ? nasiMeridiem(g("dayPeriod")) : g("dayPeriod"))
+    : "";
+  return `${g("day")}/${g("month")}/${g("year")} – ${g("hour")}:${g("minute")}${mark}`;
 }
 
 /* All new-moon, full-moon, and NASA-catalogued eclipse instants whose LOCAL

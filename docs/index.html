@@ -12,18 +12,31 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>التقويم النسيء | Nasi' Calendar</title>
 <style>
+  /* Three states, not two. "System" stamps no attribute and follows
+   * prefers-color-scheme; an explicit choice stamps data-theme and must win in
+   * BOTH directions -- which is why the media query is guarded rather than
+   * left to fight a later rule on specificity. */
   :root {
+    color-scheme: light;
     --bg: #f7f3ec; --panel: #ffffff; --ink: #2a2016; --muted: #7a6f5f;
     --accent: #b5651d; --accent-soft: #f0dcc3; --line: #e4d9c6;
     --today: #2f6f4f; --today-soft: #dcefe2;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
       --bg: #1b1712; --panel: #262019; --ink: #ece3d6; --muted: #a6998a;
       --accent: #e0985a; --accent-soft: #3a2c1d; --line: #3c3226;
       --today: #6fbf94; --today-soft: #1e3329;
     }
   }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1b1712; --panel: #262019; --ink: #ece3d6; --muted: #a6998a;
+    --accent: #e0985a; --accent-soft: #3a2c1d; --line: #3c3226;
+    --today: #6fbf94; --today-soft: #1e3329;
+  }
+  :root[data-theme="light"] { color-scheme: light; }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5;
@@ -406,6 +419,15 @@
                 font-size: 0.85rem; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink);
                                      border-color: var(--accent); font-weight: 600; }
+  .seg button[disabled] { opacity: 0.5; cursor: default; }
+  .check-list { display: flex; flex-direction: column; gap: 8px; }
+  .check-list label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+                      cursor: pointer; }
+  .check-list input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent);
+                                       flex: none; cursor: pointer; }
+  .check-list input[type="checkbox"]:disabled { cursor: default; }
+  .check-list input[type="checkbox"]:disabled + span { opacity: 0.55; }
+  .set-hint { font-size: 0.78rem; color: var(--muted); margin: 6px 0 0; line-height: 1.6; }
 
   /* ---------- subscribe block (now on the calendar tab) ---------- */
   .sub-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 10px; }
@@ -442,6 +464,16 @@
     #subscribe select, #faqSearch { font-size: 0.85rem; }
   }
 </style>
+<script>
+  /* Runs before first paint. The script that owns settings sits at the end of
+   * body, and by the time it runs the page has already been painted in the
+   * system theme -- so a reader who chose dark on a light machine would see a
+   * white flash on every load. Reading the one value here costs nothing. */
+  try {
+    var _th = localStorage.getItem("nasi.theme");
+    if (_th === "light" || _th === "dark") document.documentElement.setAttribute("data-theme", _th);
+  } catch (e) { /* private mode */ }
+</script>
 </head>
 <body>
 <header>
@@ -515,19 +547,19 @@
     <table class="conv">
       <thead><tr><th data-i18n="ui.colCalendar">التقويم</th><th data-i18n="ui.colDay">اليوم</th><th data-i18n="ui.colMonth">الشهر</th><th data-i18n="ui.colYear">السنة</th></tr></thead>
       <tbody>
-        <tr>
+        <tr id="convRowG">
           <th data-i18n="ui.calGregorian">ميلادي</th>
           <td class="d"><input type="number" id="gD" min="1" max="31"></td>
           <td><select id="gM"></select></td>
           <td class="y"><input type="number" id="gY" min="1600" max="2200"></td>
         </tr>
-        <tr>
+        <tr id="convRowH">
           <th data-i18n="ui.calHijri">هجري رسمي</th>
           <td class="d"><input type="number" id="hD" min="1" max="30"></td>
           <td><select id="hM"></select></td>
           <td class="y"><input type="number" id="hY"></td>
         </tr>
-        <tr>
+        <tr id="convRowN">
           <th data-i18n="ui.calNasi">نسيء</th>
           <td class="d"><input type="number" id="nD" min="1" max="30"></td>
           <td><select id="nM"></select></td>
@@ -665,6 +697,51 @@
       <p class="hint" id="customNote" data-i18n="city.customNote" style="margin-bottom:0;"></p>
       </div>
     </div>
+
+    <div class="set-row">
+      <span class="set-label" data-i18n="set.theme"></span>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme-choice="system" data-i18n="set.themeSystem" aria-pressed="false"></button>
+        <button type="button" data-theme-choice="light"  data-i18n="set.themeLight"  aria-pressed="false"></button>
+        <button type="button" data-theme-choice="dark"   data-i18n="set.themeDark"   aria-pressed="false"></button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <span class="set-label" data-i18n="set.clock"></span>
+      <div class="seg" id="clockSeg">
+        <button type="button" data-clock="24" data-i18n="set.clock24" aria-pressed="false"></button>
+        <button type="button" data-clock="12" data-i18n="set.clock12" aria-pressed="false"></button>
+      </div>
+    </div>
+
+    <!-- labels are weekday names, so they are filled by applyLanguage rather
+         than data-i18n: the list is one comma-joined string, not three keys -->
+    <div class="set-row">
+      <span class="set-label" data-i18n="set.weekStart"></span>
+      <div class="seg" id="weekSeg">
+        <button type="button" data-week="6" aria-pressed="false"></button>
+        <button type="button" data-week="0" aria-pressed="false"></button>
+        <button type="button" data-week="1" aria-pressed="false"></button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <span class="set-label" data-i18n="set.rows"></span>
+      <div class="check-list" id="rowsList">
+        <label><input type="checkbox" data-row="g"><span data-i18n="ui.calGregorian"></span></label>
+        <label><input type="checkbox" data-row="h"><span data-i18n="ui.calHijri"></span></label>
+        <label><input type="checkbox" data-row="n"><span data-i18n="ui.calNasi"></span></label>
+      </div>
+      <p class="set-hint" data-i18n="set.rowsHint"></p>
+    </div>
+
+    <div class="set-row">
+      <div class="check-list">
+        <label><input type="checkbox" id="hideComputed"><span data-i18n="set.hideComputed"></span></label>
+      </div>
+      <p class="set-hint" data-i18n="set.hideComputedHint"></p>
+    </div>
   </div>
 </div>
 
@@ -678,11 +755,11 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=04248232"></script>
+<script src="strings-data.js?v=78024089"></script>
 <script src="cities-data.js?v=1af891a4"></script>
 <script src="moon.js?v=a4abf928"></script>
-<script src="solar.js?v=cae692b4"></script>
-<script src="moon-events.js?v=1e5c5a4e"></script>
+<script src="solar.js?v=4961c053"></script>
+<script src="moon-events.js?v=c5c195dc"></script>
 <script src="eclipses-data.js?v=152d4b3a"></script>
 <script src="faq-data.js?v=3a63d0e1"></script>
 <!-- must load after nasi-calendar.js (addDays/daysBetween/NASI_RANGE) and
@@ -709,6 +786,7 @@ const NASI_ORDER = ["صفر الأول","صفر الثاني","ربيع الأو
  * polynomials stay trustworthy. */
 const TABLE_MIN = NASI_RANGE.min, TABLE_MAX = NASI_RANGE.max;
 const MIN_ISO = "1600-01-01", MAX_ISO = "2200-12-31";
+const MIN_YEAR = +MIN_ISO.slice(0, 4), MAX_YEAR = +MAX_ISO.slice(0, 4);
 const isComputedDate = (s) => s < TABLE_MIN || s > TABLE_MAX;
 const $ = (id) => document.getElementById(id);
 const pad = (n, w) => String(n).padStart(w, "0");
@@ -722,7 +800,7 @@ let pickedISO = null;
 /* ---------- month grid ---------- */
 function renderWeekdayHeader() {
   const row = $("weekdayRow"); row.innerHTML = "";
-  for (const w of weekdayNames()) { const th = document.createElement("th"); th.textContent = w; row.appendChild(th); }
+  for (const w of orderedWeekdayNames()) { const th = document.createElement("th"); th.textContent = w; row.appendChild(th); }
 }
 
 function renderGrid() {
@@ -752,10 +830,10 @@ function renderGrid() {
   const mFirst = iso(viewYear, viewMonth + 1, 1);
   const mLast = iso(viewYear, viewMonth + 1, new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate());
   $("computedNote").textContent = (isComputedDate(mFirst) || isComputedDate(mLast))
-    ? t("grid.computedWarning", LANG)
+    ? t(HIDE_COMPUTED ? "grid.computedHidden" : "grid.computedWarning", LANG)
     : "";
   const first = new Date(Date.UTC(viewYear, viewMonth, 1));
-  const startWeekday = first.getUTCDay();
+  const startWeekday = (first.getUTCDay() - WEEK_START + 7) % 7;
   const daysInMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
   const today = todayISO();
 
@@ -776,14 +854,18 @@ function renderGrid() {
         if (s === today) td.classList.add("today");
         if (s === pickedISO) td.classList.add("picked");
         const n = gregorianToNasiExtended(s);
-        if (n && n.computed) td.classList.add("computed");
+        // hidden means hidden: no marked styling either, or the cell would
+        // advertise a date it is not showing
+        const nasiHidden = !!(n && n.computed && HIDE_COMPUTED);
+        if (n && n.computed && !nasiHidden) td.classList.add("computed");
         const mp = moonPhaseForISO(s);
         const moonHTML = mp ? `<div class="moon-corner">${moonIconSVG(mp.illum, mp.waxing, 16, "#000000", "#FFD60A")}</div>` : "";
         const dayEvents = monthEvents[s];
         const badgeHTML = (dayEvents && dayEvents.length)
           ? `<button type="button" class="event-badge" title="${t("grid.badgeTitle", LANG)}">i</button>` : "";
         td.innerHTML = moonHTML + badgeHTML + `<div class="g-num">${day}</div>` +
-          (n ? `<div class="n-num">${n.nd} ${nasiMonthLabel(n.nm)}</div>` : `<div class="n-num">—</div>`);
+          (n && !nasiHidden ? `<div class="n-num">${n.nd} ${nasiMonthLabel(n.nm)}</div>`
+                            : `<div class="n-num">—</div>`);
         if (dayEvents && dayEvents.length) {
           td.querySelector(".event-badge").addEventListener("click", (ev) => {
             ev.stopPropagation();
@@ -800,7 +882,12 @@ function renderGrid() {
 
 function gotoMonth(y, m) {
   if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
-  viewYear = Math.min(2100, Math.max(2000, y)); viewMonth = m;
+  /* This used to clamp to 2000-2100 -- the span of the book's table -- while
+   * the year field, MIN_ISO/MAX_ISO and nasi-extend.js all advertise
+   * 1600-2200. The grid therefore could not reach a single computed date, and
+   * the converter could, because setDate() assigns viewYear with no clamp at
+   * all. Two navigation paths, two different bounds. */
+  viewYear = Math.min(MAX_YEAR, Math.max(MIN_YEAR, y)); viewMonth = m;
   renderGrid();
 }
 
@@ -828,14 +915,34 @@ function renderRows(s, skip) {
   const h = gregorianToHijri(s);
   if (skip !== "h") { $("hD").value = h.d; $("hM").value = h.m - 1; $("hY").value = h.y; }
   const n = gregorianToNasiExtended(s);
-  if (skip !== "n" && n) { $("nD").value = n.nd; $("nM").value = n.nm; $("nY").value = n.ny; }
+  const nasiHidden = !!(n && n.computed && HIDE_COMPUTED);
+  if (skip !== "n") {
+    if (n && !nasiHidden) { $("nD").value = n.nd; $("nM").value = n.nm; $("nY").value = n.ny; }
+    // leaving the old values in a visible row would contradict the setting
+    else if (nasiHidden) { $("nD").value = ""; $("nY").value = ""; }
+  }
 
+  // the weekday of a date is a fact about that date; it does not move with the
+  // reader's chosen start of week, so this stays indexed by getUTCDay()
   const wd = weekdayNames()[new Date(s + "T00:00:00Z").getUTCDay()];
-  const tail = n && n.computed ? "  ·  " + t("conv.computedNote", LANG) : "";
-  box.textContent = n
+  const tail = n && n.computed
+    ? "  ·  " + t(nasiHidden ? "conv.computedHidden" : "conv.computedNote", LANG) : "";
+  box.textContent = (n && !nasiHidden)
     ? `${wd} · ${ddmmyyyy(s)} ${t("era.gregorian", LANG)}  ·  ${h.d} ${hijriMonthNames()[h.m-1]} ${h.y} ${t("era.hijri", LANG)}  ·  ${n.nd} ${nasiMonthLabel(n.nm)} ${n.ny} ${t("era.nasi", LANG)}${tail}`
-    : `${wd} · ${ddmmyyyy(s)} ${t("era.gregorian", LANG)}  ·  ${h.d} ${hijriMonthNames()[h.m-1]} ${h.y} ${t("era.hijri", LANG)}`;
+    : `${wd} · ${ddmmyyyy(s)} ${t("era.gregorian", LANG)}  ·  ${h.d} ${hijriMonthNames()[h.m-1]} ${h.y} ${t("era.hijri", LANG)}${tail}`;
   box.classList.toggle("computed-note", !!(n && n.computed));
+}
+
+/* setDate() also MOVES the grid to that date's month, which is right when the
+ * reader picks a date and wrong when something changes underneath them: a
+ * language switch or a settings toggle should not yank you back to the picked
+ * month from wherever you were browsing. */
+function rerenderForDate(s) {
+  renderRows(s, true);
+  renderSunMoon(s);
+  renderMoonEvents(s);
+  renderCycles(s);
+  renderGrid();
 }
 
 function setDate(s, skip) {
@@ -1024,6 +1131,7 @@ function applyLanguage(lang) {
     b.setAttribute("aria-pressed", String(b.dataset.lang === lang));
   if (refreshSettingsChip) refreshSettingsChip();
   if (renderSubscribeLink) renderSubscribeLink();
+  refreshSettingControls();          // the week-start labels are weekday names
   // applyLanguage also runs during init, BEFORE a date has been picked, so
   // these re-renders have to tolerate that. Without the guard, init died on
   // setDate(null) and the toggle silently never worked.
@@ -1031,7 +1139,7 @@ function applyLanguage(lang) {
     const box = document.getElementById("faqSearch");
     renderFAQ(box ? box.value : "");
   }
-  if (pickedISO) { setDate(pickedISO, true); renderGrid(); }
+  if (pickedISO) rerenderForDate(pickedISO);
 }
 
 /* ---------- the long cycles ---------- */
@@ -1194,6 +1302,85 @@ let selectedCity = (() => {
   } catch (e) { /* private mode: fall through to the default */ }
   return "cairo";
 })();
+
+/* ---------- reader settings ----------------------------------------------
+ * One value each in localStorage, read at load and written on change. Private
+ * mode throws on both, so every access is guarded: the app has to keep working
+ * with storage unavailable, simply without remembering anything. */
+const readStore = (key, fallback) => {
+  try { const v = localStorage.getItem(key); return v === null ? fallback : v; }
+  catch (e) { return fallback; }
+};
+const writeStore = (key, value) => {
+  try { localStorage.setItem(key, value); } catch (e) { /* private mode */ }
+};
+
+let THEME = (() => {
+  const v = readStore("nasi.theme", "system");
+  return ["system", "light", "dark"].includes(v) ? v : "system";
+})();
+let CLOCK12 = readStore("nasi.clock", "24") === "12";
+let WEEK_START = (() => {
+  const n = parseInt(readStore("nasi.weekStart", "0"), 10);
+  return [0, 1, 6].includes(n) ? n : 0;          // Sunday, Monday or Saturday
+})();
+let ROWS = (() => {
+  const raw = readStore("nasi.rows", "ghn");
+  const on = { g: raw.includes("g"), h: raw.includes("h"), n: raw.includes("n") };
+  // two is the floor: with one row there is nothing to convert between, and a
+  // stored value of "" would otherwise leave an empty table with no way back
+  return Object.values(on).filter(Boolean).length >= 2 ? on : { g: true, h: true, n: true };
+})();
+let HIDE_COMPUTED = readStore("nasi.hideComputed", "0") === "1";
+
+function applyTheme() {
+  const root = document.documentElement;
+  if (THEME === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", THEME);
+}
+
+/* solar.js and moon-events.js format every clock time in the app and both load
+ * before this script, so they read these two globals defensively rather than
+ * depending on anything declared here. */
+function applyClock() { window.NASI_CLOCK12 = CLOCK12; }
+window.nasiMeridiem = (dayPeriod) => t(/^a/i.test(dayPeriod) ? "unit.am" : "unit.pm", LANG);
+
+function applyConverterRows() {
+  for (const [key, id] of [["g", "convRowG"], ["h", "convRowH"], ["n", "convRowN"]]) {
+    const el = $(id);
+    if (el) el.hidden = !ROWS[key];
+  }
+}
+
+/* The stored week start rotates the header names AND the leading blanks; get
+ * one without the other and every date lands in the wrong column. */
+const orderedWeekdayNames = () => {
+  const names = weekdayNames();
+  return names.slice(WEEK_START).concat(names.slice(0, WEEK_START));
+};
+
+function refreshSettingControls() {
+  const press = (sel, match) => {
+    for (const b of document.querySelectorAll(sel)) b.setAttribute("aria-pressed", String(match(b)));
+  };
+  press("#themeSeg button", (b) => b.dataset.themeChoice === THEME);
+  press("#clockSeg button", (b) => (b.dataset.clock === "12") === CLOCK12);
+  press("#weekSeg button", (b) => Number(b.dataset.week) === WEEK_START);
+  // these three labels are weekday names, so they follow the language
+  const names = weekdayNames();
+  for (const b of document.querySelectorAll("#weekSeg button")) {
+    b.textContent = names[Number(b.dataset.week)] || "";
+  }
+  const chosen = Object.keys(ROWS).filter((k) => ROWS[k]);
+  for (const cb of document.querySelectorAll("#rowsList input[data-row]")) {
+    cb.checked = !!ROWS[cb.dataset.row];
+    // at exactly two, neither of the two may be unchecked: that is the floor.
+    // To swap one out, tick the third first.
+    cb.disabled = cb.checked && chosen.length <= 2;
+  }
+  const hc = $("hideComputed");
+  if (hc) hc.checked = HIDE_COMPUTED;
+}
 
 /* The city dropdown is built from the registry, not typed into the markup:
  * adding a city is a data edit and nothing else. Grouped by region because a
@@ -1624,6 +1811,63 @@ function renderMoonEvents(s) {
     const b = e.target.closest("button[data-lang]");
     if (b && b.dataset.lang !== LANG) applyLanguage(b.dataset.lang);
   });
+
+  // Every displayed time comes from a render, so a clock change has to redo
+  // them all -- the sun tiles, the moon events and the cycles rows alike.
+  const redrawTimes = () => { if (pickedISO) rerenderForDate(pickedISO); else renderGrid(); };
+
+  $("themeSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-theme-choice]");
+    if (!b || b.dataset.themeChoice === THEME) return;
+    THEME = b.dataset.themeChoice;
+    writeStore("nasi.theme", THEME);
+    applyTheme();
+    refreshSettingControls();
+  });
+
+  $("clockSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-clock]");
+    if (!b) return;
+    const want = b.dataset.clock === "12";
+    if (want === CLOCK12) return;
+    CLOCK12 = want;
+    writeStore("nasi.clock", want ? "12" : "24");
+    applyClock();
+    refreshSettingControls();
+    redrawTimes();
+  });
+
+  $("weekSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-week]");
+    if (!b) return;
+    const want = Number(b.dataset.week);
+    if (want === WEEK_START) return;
+    WEEK_START = want;
+    writeStore("nasi.weekStart", String(want));
+    renderWeekdayHeader();       // names and blanks must move together
+    renderGrid();
+    refreshSettingControls();
+  });
+
+  $("rowsList").addEventListener("change", (e) => {
+    const cb = e.target.closest("input[data-row]");
+    if (!cb) return;
+    ROWS[cb.dataset.row] = cb.checked;
+    writeStore("nasi.rows", Object.keys(ROWS).filter((k) => ROWS[k]).join(""));
+    applyConverterRows();
+    refreshSettingControls();
+  });
+
+  $("hideComputed").addEventListener("change", (e) => {
+    HIDE_COMPUTED = e.target.checked;
+    writeStore("nasi.hideComputed", HIDE_COMPUTED ? "1" : "0");
+    if (pickedISO) rerenderForDate(pickedISO); else renderGrid();
+  });
+
+  applyTheme();
+  applyClock();
+  applyConverterRows();
+  refreshSettingControls();
 
   renderSubscribeLink();
   refreshSettingsChip();

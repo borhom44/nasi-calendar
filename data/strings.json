@@ -760,6 +760,70 @@
     "city.locateNoSupport": {
       "ar": "هذا المتصفح لا يوفّر تحديد الموقع.",
       "en": "This browser cannot report a location."
+    },
+    "set.theme": {
+      "ar": "المظهر",
+      "en": "Appearance"
+    },
+    "set.themeSystem": {
+      "ar": "حسب النظام",
+      "en": "System"
+    },
+    "set.themeLight": {
+      "ar": "فاتح",
+      "en": "Light"
+    },
+    "set.themeDark": {
+      "ar": "داكن",
+      "en": "Dark"
+    },
+    "set.clock": {
+      "ar": "صيغة الوقت",
+      "en": "Clock"
+    },
+    "set.clock24": {
+      "ar": "٢٤ ساعة",
+      "en": "24-hour"
+    },
+    "set.clock12": {
+      "ar": "١٢ ساعة",
+      "en": "12-hour"
+    },
+    "unit.am": {
+      "ar": "ص",
+      "en": "am"
+    },
+    "unit.pm": {
+      "ar": "م",
+      "en": "pm"
+    },
+    "set.weekStart": {
+      "ar": "يبدأ الأسبوع يوم",
+      "en": "Week starts on"
+    },
+    "set.rows": {
+      "ar": "صفوف التحويل",
+      "en": "Converter rows"
+    },
+    "set.rowsHint": {
+      "ar": "يلزم صفّان على الأقل — التحويل بين تقويم واحد لا معنى له.",
+      "en": "Two rows minimum — there is nothing to convert between with one."
+    },
+    "set.hideComputed": {
+      "ar": "أخفِ التواريخ المحسوبة",
+      "en": "Hide computed dates"
+    },
+    "set.hideComputedHint": {
+      "ar": "جدول الكتاب يغطي 1999-12-09 حتى 2100-12-31. خارجه تُحسب التواريخ من القاعدة المذكورة، وهي تُعرَض مميّزة. فعِّل هذا لإخفائها تماماً.",
+      "en": "The book’s table covers 1999-12-09 to 2100-12-31. Outside it, dates are computed from the stated rule and shown marked. Turn this on to hide them entirely."
+    },
+    "grid.computedHidden": {
+      "ar": "تواريخ النسيء لهذا الشهر خارج جدول الكتاب، وهي مخفيّة حسب إعدادك.",
+      "en": "The Nasi’ dates this month fall outside the book’s table and are hidden, by your setting."
+    },
+    "conv.computedHidden": {
+      "ar": "· (خارج جدول الكتاب — مخفي حسب إعدادك)",
+      "en": "· (outside the book’s table — hidden by your setting)"
     }
   }
 }

@@ -12,7 +12,9 @@ DONE is deployed. He has more items coming; this file stays the running list.
 | E font too big | **DONE** — desktop-only override |
 | F merge Sky into Cycles | **DONE** |
 | G About keeps FAQ only | **DONE** |
-| Extra settings rows (theme, 12h, week start…) | **NOT STARTED** — he has not picked any |
+| Extra settings rows — all five | **DONE** — he took all of them |
+| `gotoMonth` clamped the grid to 2000-2100 | **DONE** — pre-existing, found while testing |
+| Settings changes yanked the grid back to the picked month | **DONE** — `applyLanguage` did it too |
 
 ---
 
