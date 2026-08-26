@@ -91,6 +91,32 @@ def remove(name, rtype):
     return status
 
 
+def wait_for_txt(fqdn, expected, timeout=180):
+    """Block until a public resolver returns the expected TXT value."""
+    import subprocess
+    import time
+    deadline = time.time() + timeout
+    attempt = 0
+    while time.time() < deadline:
+        attempt += 1
+        for resolver in ("@1.1.1.1", "@8.8.8.8"):
+            try:
+                out = subprocess.run(["dig", "+short", "TXT", fqdn, resolver],
+                                     capture_output=True, text=True, timeout=20).stdout
+            except (OSError, subprocess.SubprocessError):
+                out = ""
+            if expected in out:
+                print(f"  TXT visible on {resolver} after {attempt} check(s)")
+                # Authoritative servers can still lag each other; a short settle
+                # costs seconds and avoids a wasted ACME order.
+                time.sleep(10)
+                return True
+        time.sleep(10)
+    print(f"  WARNING: TXT for {fqdn} not visible after {timeout}s; "
+          f"letting certbot try anyway")
+    return False
+
+
 def _print_zone():
     for r in get_zone() or []:
         if isinstance(r, dict):
@@ -107,8 +133,13 @@ if __name__ == "__main__":
         print(remove(sys.argv[2], sys.argv[3]))
     elif sys.argv[1] == "certbot-auth":
         # certbot --manual-auth-hook: name and value arrive in the environment.
-        print(add("_acme-challenge." + os.environ["CERTBOT_DOMAIN"].split("." + DOMAIN)[0],
-                  "TXT", os.environ["CERTBOT_VALIDATION"]))
+        name = "_acme-challenge." + os.environ["CERTBOT_DOMAIN"].split("." + DOMAIN)[0]
+        value = os.environ["CERTBOT_VALIDATION"]
+        add(name, "TXT", value)
+        # certbot validates the moment this hook returns, so the record has to
+        # be VISIBLE by then, not merely accepted by the API. Without this wait
+        # the certificate request fails on a record that exists.
+        wait_for_txt(name + "." + DOMAIN, value)
     elif sys.argv[1] == "certbot-cleanup":
         print(remove("_acme-challenge." + os.environ["CERTBOT_DOMAIN"].split("." + DOMAIN)[0],
                      "TXT"))
