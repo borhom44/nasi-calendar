@@ -74,8 +74,8 @@
       "en": "km"
     },
     "city.label": {
-      "ar": "المدينة:",
-      "en": "City:"
+      "ar": "المدينة",
+      "en": "City"
     },
     "feed.calendarName": {
       "ar": "التقويم النسيء — {city}",
@@ -338,8 +338,8 @@
       "en": "English"
     },
     "sub.moreCities": {
-      "ar": "كل مدينة في التطبيق لها رابطها الخاص؛ يُولَّد الملف عند طلب تقويمك له.",
-      "en": "Every city in the app has its own link; the file is generated when your calendar asks for it."
+      "ar": "يُولَّد ملف كل مدينة عند طلب تقويمك له، فلا يوجد ما يصير قديماً.",
+      "en": "Each city’s file is generated when your calendar asks for it, so nothing goes stale."
     },
     "city.custom": {
       "ar": "موقع مخصص…",
@@ -482,8 +482,8 @@
       "en": "Search the questions — try نسيء, Ramadan, NASA…"
     },
     "ui.subscribeHint": {
-      "ar": "اشترِك مرة واحدة فتظهر تواريخ النسيء وأوقات الشمس وأحداث القمر داخل تقويمك يوماً بيوم حتى نهاية 2030. اختر مدينة واحدة فقط — أوقات الشمس تختلف بين المدن.",
-      "en": "Subscribe once and the Nasi’ dates, sun times and moon events appear in your own calendar, day by day, through the end of 2030. Pick one city — sun times differ between them."
+      "ar": "اشترِك مرة واحدة فتظهر تواريخ النسيء وأوقات الشمس وأحداث القمر داخل تقويمك يوماً بيوم حتى نهاية 2030.",
+      "en": "Subscribe once and the Nasi’ dates, sun times and moon events appear in your own calendar, day by day, through the end of 2030."
     },
     "ui.step1": {
       "ar": "انسخ رابط مدينتك من الأعلى.",
@@ -704,6 +704,62 @@
     "unit.day": {
       "ar": "يوماً",
       "en": "days"
+    },
+    "ui.settings": {
+      "ar": "الإعدادات",
+      "en": "Settings"
+    },
+    "ui.settingsOpen": {
+      "ar": "افتح الإعدادات",
+      "en": "Open settings"
+    },
+    "ui.close": {
+      "ar": "إغلاق",
+      "en": "Close"
+    },
+    "ui.settingsIntro": {
+      "ar": "المدينة واللغة المختارتان هنا تسريان على التطبيق كله وعلى رابط الاشتراك.",
+      "en": "The city and language chosen here apply to the whole app and to the subscription link."
+    },
+    "sub.addToCalendar": {
+      "ar": "أضِف إلى تقويمي",
+      "en": "Add to my calendar"
+    },
+    "sub.addGoogle": {
+      "ar": "إضافة إلى تقويم Google",
+      "en": "Add to Google Calendar"
+    },
+    "sub.addApple": {
+      "ar": "إضافة إلى Apple / Outlook",
+      "en": "Add to Apple Calendar / Outlook"
+    },
+    "sub.linkIsFor": {
+      "ar": "هذا الرابط: {city} — {lang}. غيّر المدينة أو اللغة من الإعدادات.",
+      "en": "This link: {city} — {lang}. Change either one in Settings."
+    },
+    "sub.customNoLink": {
+      "ar": "لا يوجد رابط اشتراك لموقع مخصّص بخط عرض وطول. اختر مدينة من الإعدادات للحصول على رابط.",
+      "en": "A custom latitude and longitude has no subscription link. Pick a city in Settings to get one."
+    },
+    "sub.howTo": {
+      "ar": "أو أضِفه يدوياً",
+      "en": "Or add it by hand"
+    },
+    "city.locating": {
+      "ar": "جارٍ تحديد الموقع…",
+      "en": "Locating…"
+    },
+    "city.locateDenied": {
+      "ar": "رُفض إذن الوصول إلى الموقع. أدخل الإحداثيات يدوياً.",
+      "en": "Location permission was refused. Type the coordinates instead."
+    },
+    "city.locateFailed": {
+      "ar": "تعذّر تحديد موقعك. حاول مرة أخرى أو أدخل الإحداثيات يدوياً.",
+      "en": "Could not get your location. Try again, or type the coordinates."
+    },
+    "city.locateNoSupport": {
+      "ar": "هذا المتصفح لا يوفّر تحديد الموقع.",
+      "en": "This browser cannot report a location."
     }
   }
 }

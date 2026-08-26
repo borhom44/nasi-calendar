@@ -1,7 +1,18 @@
 # Round 2 — collecting
 
-**Status: COLLECTING. Nothing here is implemented.** He has more items coming;
-this file is the running list until he says it is complete.
+**Status: FIRST BATCH BUILT AND LIVE, 26 Aug 2026.** Everything below marked
+DONE is deployed. He has more items coming; this file stays the running list.
+
+| Item | State |
+|---|---|
+| B1 lat/lon block always visible | **DONE** — global `[hidden]` fix |
+| B2 "use my location" silent | **DONE** — errors, timeout, timezone |
+| A settings modal | **DONE** — gear in header |
+| B/C .ics moves to Calendar, dims for custom | **DONE** |
+| E font too big | **DONE** — desktop-only override |
+| F merge Sky into Cycles | **DONE** |
+| G About keeps FAQ only | **DONE** |
+| Extra settings rows (theme, 12h, week start…) | **NOT STARTED** — he has not picked any |
 
 ---
 
