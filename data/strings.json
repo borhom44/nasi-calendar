@@ -77,10 +77,6 @@
       "ar": "المدينة:",
       "en": "City:"
     },
-    "app.name": {
-      "ar": "التقويم النسيء",
-      "en": "Nasi’ Calendar"
-    },
     "feed.calendarName": {
       "ar": "التقويم النسيء — {city}",
       "en": "Nasi’ Calendar — {city}"
@@ -704,6 +700,10 @@
     "sun.polarNightShort": {
       "ar": "لا تشرق",
       "en": "no rise"
+    },
+    "unit.day": {
+      "ar": "يوماً",
+      "en": "days"
     }
   }
 }

@@ -96,8 +96,12 @@
    * intercalary years, the solid one is where we are now. */
   .cycle-bar { display: flex; gap: 3px; margin: 10px 0 18px; }
   .cycle-bar i { flex: 1; height: 10px; border-radius: 3px; background: var(--line); display: block; }
-  .cycle-bar i.inter { background: var(--accent-soft); }
-  .cycle-bar i.now { background: var(--accent); }
+  /* Intercalary years were --accent-soft, which sits within 1.05:1 of --line in
+   * light mode and 1.08:1 in dark -- indistinguishable, which defeats the whole
+   * point of the bar. Opacity on the accent gives a real three-way separation
+   * in both modes without inventing a new token. */
+  .cycle-bar i.inter { background: var(--accent); opacity: 0.62; }
+  .cycle-bar i.now { background: var(--accent); opacity: 1; }
   .cycle-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .chip { font-size: 0.78rem; color: var(--accent); background: var(--accent-soft);
           border-radius: 20px; padding: 2px 10px; }
@@ -124,12 +128,19 @@
   .custom-city button:hover { background: var(--accent-soft); }
   .custom-city .hint { flex: 1 0 100%; margin: 0; }
 
-  /* Sits in the tab strip but is not a tab: it switches the whole page, so
-   * it reads as an action rather than a destination. */
-  .lang-toggle { margin-inline-start: auto; border: 1px solid var(--line);
-                 background: var(--panel); color: var(--muted); border-radius: 8px;
-                 padding: 4px 10px; font-size: 0.8rem; cursor: pointer; }
+  /* In the header, not the tab strip. Two reasons: a tablist may only contain
+   * tabs, and a screen reader walking the strip hit a button that was not one;
+   * and language is a setting rather than a destination, so it does not belong
+   * among the navigation targets in the first place. */
+  header { position: relative; }
+  .lang-toggle { position: absolute; top: 14px; inset-inline-end: 14px;
+                 border: 1px solid var(--line); background: var(--panel);
+                 color: var(--muted); border-radius: 8px; padding: 6px 12px;
+                 font-size: 0.8rem; font-family: inherit; cursor: pointer;
+                 min-height: 32px; }
   .lang-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+  @media (max-width: 640px) { .lang-toggle { top: 10px; inset-inline-end: 10px;
+                                             padding: 4px 9px; font-size: 0.75rem; } }
 
   td.grid-cell { position: relative; }
   .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
@@ -345,6 +356,7 @@
 </head>
 <body>
 <header>
+  <button type="button" id="langToggle" class="lang-toggle"></button>
   <h1 data-i18n="ui.appTitle">التقويم النسيء</h1>
   <p data-i18n="ui.tagline">تقويم شمسي‑قمري كان يُستخدم قبل الإسلام، يُدرج فيه شهر «النسيء» كل نحو ثلاث سنوات لمواءمة السنة القمرية مع الفصول.
   البيانات مأخوذة من الجدول المرفق بكتاب «براءة النسيء» (وسام الدين إسحق)، ويغطي الأعوام 2000–2100م.</p>
@@ -355,7 +367,6 @@
   <button role="tab" data-tab="sky"       aria-selected="false" aria-controls="tab-sky" data-i18n="tab.sky">القمر</button>
   <button role="tab" data-tab="cycles"    aria-selected="false" aria-controls="tab-cycles" id="tabBtnCycles"></button>
   <button role="tab" data-tab="info"      aria-selected="false" aria-controls="tab-info" data-i18n="tab.info">معلومات</button>
-  <button type="button" id="langToggle" class="lang-toggle"></button>
 </nav>
 
 <main>
@@ -467,6 +478,7 @@
     <h2 id="cyclesMoonTitle"></h2>
     <div id="cyclesMoonRows"></div>
     <p class="hint" id="cyclesSeasonWhat" style="margin-top:14px;"></p>
+    <p class="hint" id="cyclesFullMoonWhat"></p>
     <p class="hint" id="cyclesMoonWhat" style="margin-bottom:0;"></p>
   </section>
   <section class="panel">
@@ -564,7 +576,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=9e7c05f8"></script>
+<script src="strings-data.js?v=78d52e2e"></script>
 <script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=a4abf928"></script>
 <script src="solar.js?v=cae692b4"></script>
@@ -583,7 +595,7 @@
 <script src="eclipse-events.js?v=ac7f8c55"></script>
 <!-- cycles.js first: day-events.js calls metonicPosition() -->
 <script src="cycles.js?v=0f1468f8"></script>
-<script src="day-events.js?v=8cc570eb"></script>
+<script src="day-events.js?v=b57c6725"></script>
 <script src="faq.js?v=0c9af285"></script>
 <script>
 const NASI_ORDER = ["صفر الأول","صفر الثاني","ربيع الأول","ربيع الثاني","جمادى الأولى","جمادى الثانية",
@@ -995,7 +1007,8 @@ function renderCycles(iso) {
   const ssJD = nextMajorStandstillJD(_jdUTC(gy, 1, 1));
   if (ssJD) moonRows.push(row(t("cycles.standstill", LANG), jdToISO(ssJD).slice(0, 4)));
 
-  moonRows.push(row(t("cycles.fullMoonCycle", LANG), "411.78"));
+  moonRows.push(row(t("cycles.fullMoonCycle", LANG),
+    "411.78 " + t("unit.day", LANG)));
 
   /* The azimuth swing needs moonRiseSet for every day of the year -- about
    * 50,000 evaluations of the position series. Only computed when this tab is
@@ -1015,6 +1028,7 @@ function renderCycles(iso) {
   $("cyclesMoonRows").innerHTML = moonRows.join("");
   $("cyclesMoonWhat").textContent = t("cycles.standstillWhat", LANG);
   $("cyclesSeasonWhat").textContent = t("cycles.eclipseSeasonWhat", LANG);
+  $("cyclesFullMoonWhat").textContent = t("cycles.fullMoonCycleWhat", LANG);
 
   $("cyclesSlipTitle").textContent = t("cycles.slipTitle", LANG);
   $("cyclesSlip").textContent =

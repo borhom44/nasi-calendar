@@ -23,7 +23,6 @@ const STRINGS = {
   "unit.second": {"ar": "ث", "en": "s"},
   "unit.km": {"ar": "كم", "en": "km"},
   "city.label": {"ar": "المدينة:", "en": "City:"},
-  "app.name": {"ar": "التقويم النسيء", "en": "Nasi’ Calendar"},
   "feed.calendarName": {"ar": "التقويم النسيء — {city}", "en": "Nasi’ Calendar — {city}"},
   "feed.eventInCity": {"ar": "{event} في {city}", "en": "{event} in {city}"},
   "tab.cycles": {"ar": "الدورات", "en": "Cycles"},
@@ -180,6 +179,7 @@ const STRINGS = {
   "sun.polarNight": {"ar": "الشمس لا تشرق اليوم", "en": "The sun does not rise today"},
   "sun.polarDayShort": {"ar": "لا تغيب", "en": "no set"},
   "sun.polarNightShort": {"ar": "لا تشرق", "en": "no rise"},
+  "unit.day": {"ar": "يوماً", "en": "days"},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

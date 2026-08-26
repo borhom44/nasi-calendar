@@ -20,6 +20,26 @@
 
 const _monthEventCache = new Map();
 
+/* Year-scale facts, computed once per year rather than once per month view.
+ *
+ * These do not vary by month, but dayEventsForMonth was recomputing all of
+ * them every time the reader turned a page. perihelionAphelionCorrected alone
+ * costs 28 ms -- it scans 45 days at 0.02-day steps and every step is a full
+ * lunar position -- so a year of browsing paid it twelve times for one answer.
+ */
+const _yearBundleCache = new Map();
+
+function yearBundle(year) {
+  if (!_yearBundleCache.has(year)) {
+    _yearBundleCache.set(year, {
+      seasons: seasonInstants(year),
+      crossQuarter: crossQuarterJDs(year),
+      sunDistance: perihelionAphelionCorrected(year),
+    });
+  }
+  return _yearBundleCache.get(year);
+}
+
 /* Map of ISO date -> [{key, ...detail}] for one Gregorian month. */
 function dayEventsForMonth(year, month0, cityKey) {
   const cacheKey = `${year}-${month0}-${cityKey}`;
@@ -37,16 +57,14 @@ function dayEventsForMonth(year, month0, cityKey) {
   const last = `${year}-${String(month0 + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
   /* --- Sun and Earth, year-scale ------------------------------------- */
-  const seasons = seasonInstants(year);
+  const { seasons, crossQuarter: cq, sunDistance: pa } = yearBundle(year);
   add(jdToISO(seasons.marEquinox), { key: "equinoxMar", jd: seasons.marEquinox });
   add(jdToISO(seasons.junSolstice), { key: "solsticeJun", jd: seasons.junSolstice });
   add(jdToISO(seasons.sepEquinox), { key: "equinoxSep", jd: seasons.sepEquinox });
   add(jdToISO(seasons.decSolstice), { key: "solsticeDec", jd: seasons.decSolstice });
 
-  const cq = crossQuarterJDs(year);
   for (const k of ["feb", "may", "aug", "nov"]) add(jdToISO(cq[k]), { key: "crossQuarter" });
 
-  const pa = perihelionAphelionCorrected(year);
   add(jdToISO(pa.perihelion.jd), { key: "perihelion", km: pa.perihelion.km });
   add(jdToISO(pa.aphelion.jd), { key: "aphelion", km: pa.aphelion.km });
 
