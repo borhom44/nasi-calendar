@@ -105,6 +105,9 @@
   .metonic-chip { font-size: 0.75rem; color: var(--muted); border: 1px solid var(--line);
                   border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
 
+  .day-detail { grid-column: 1 / -1; margin-top: 6px; }
+  .day-detail .event-row:first-child { border-top: none; }
+
   td.grid-cell { position: relative; }
   .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
 
@@ -392,6 +395,7 @@
       <div class="moon-big" id="moonBig"></div>
       <div class="sun-times" id="sunTimes"></div>
       <p class="hint white-night" id="whiteNightNote" hidden></p>
+      <div id="dayDetail" class="day-detail"></div>
     </div>
     <div class="events-list">
       <h3>أحداث الدورة القمرية الحالية</h3>
@@ -516,7 +520,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=d6d3fe00"></script>
+<script src="strings-data.js?v=bf44ba08"></script>
 <script src="cities-data.js?v=96984f0c"></script>
 <script src="moon.js?v=11a84b9f"></script>
 <script src="solar.js?v=c15f28a9"></script>
@@ -533,6 +537,7 @@
 <script src="sky-events.js?v=ff91ba66"></script>
 <script src="moon-position.js?v=837969fd"></script>
 <script src="eclipse-events.js?v=ac7f8c55"></script>
+<script src="day-events.js?v=52886cc4"></script>
 <script src="cycles.js?v=a32e8f31"></script>
 <script src="faq.js?v=4e9d4c5c"></script>
 <script>
@@ -566,7 +571,25 @@ function renderWeekdayHeader() {
 function renderGrid() {
   $("navMonth").value = viewMonth;
   $("navYear").value = viewYear;
+  /* One badge per day, not one per event. The moon events and the sky events
+   * are merged into a single map so a day carrying both still shows a single
+   * mark -- the list itself lives one tap down in the popover. */
   const monthEvents = computeMonthMoonEvents(viewYear, viewMonth, selectedCity);
+
+  /* New and full moon lose their badge. The phase icon in the corner of the
+   * cell already says the Moon is new or full, so a second mark on the same
+   * day is redundant -- and it is 25 of the 41 marks a year, which is the
+   * difference between a calm month and a busy one. The exact instants are
+   * still one tap away in the moon panel, which lists all three. */
+  for (const iso of Object.keys(monthEvents)) {
+    monthEvents[iso] = monthEvents[iso].filter((e) => e.type !== "new" && e.type !== "full");
+    if (!monthEvents[iso].length) delete monthEvents[iso];
+  }
+
+  for (const [iso, list] of dayEventsForMonth(viewYear, viewMonth, selectedCity)) {
+    (monthEvents[iso] = monthEvents[iso] || []).push(
+      ...list.map((e) => ({ ...e, type: "sky" })));
+  }
   // Warn once per month view rather than per cell -- a whole month is almost
   // always entirely inside or entirely outside the printed table.
   const mFirst = iso(viewYear, viewMonth + 1, 1);
@@ -683,6 +706,55 @@ function fromNasi() {
 
 
 
+/* ---------- formatting sky events ---------- */
+
+/* An hour:minute for a Julian Day, in the selected city's own zone. */
+function fmtJDLocal(jd) {
+  return fmtLocal(new Date((jd - 2440587.5) * 86400000), CITIES[selectedCity].tz);
+}
+
+function fmtDuration(seconds) {
+  const s = Math.abs(Math.round(seconds));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const u = (k) => t(k, LANG);
+  return h ? `${h}${u("unit.hour")} ${m}${u("unit.minute")}`
+           : `${m}${u("unit.minute")} ${sec}${u("unit.second")}`;
+}
+
+function fmtKm(km) {
+  return Math.round(km).toLocaleString(LANG === "ar" ? "en-US" : "en-US") +
+         " " + t("unit.km", LANG);
+}
+
+/* One line of prose for a sky event. Every label comes from the string table,
+ * so this reads correctly in either language without a branch. */
+function skyEventLine(ev) {
+  const name = t("event." + ev.key, LANG);
+  switch (ev.key) {
+    case "equinoxMar": case "solsticeJun":
+    case "equinoxSep": case "solsticeDec":
+      return `${name} – ${fmtJDLocal(ev.jd)}`;
+    case "perihelion": case "aphelion":
+      return `${name} – ${fmtKm(ev.km)}`;
+    case "longestDay": case "shortestDay":
+      return `${name} – ${fmtDuration(ev.seconds)}`;
+    case "supermoon": case "micromoon":
+      return `${name} – ${fmtKm(ev.km)}`;
+    case "solarEclipse": case "lunarEclipse":
+      return `${name} ${t("eclipse." + eclipseKindKey(ev.kind), LANG)} · ` +
+             fmt("eclipse.saros", LANG, { n: ev.saros });
+    case "nasiNewYear": case "metonicStart":
+      return fmt("event." + ev.key, LANG, { ny: ev.ny });
+    default:
+      return name;
+  }
+}
+
+/* The lunar catalogue uses single letters; the solar side uses words. */
+function eclipseKindKey(kind) {
+  return { T: "total", P: "partial", N: "penumbral" }[kind] || kind;
+}
+
 /* ---------- grid event popover ---------- */
 const ECLIPSE_LABEL = { T: "خسوف كلي", P: "خسوف جزئي", N: "خسوف شبه ظلي" };
 
@@ -694,6 +766,7 @@ function showEventPopover(anchorEl, dayEvents) {
 
   const city = CITIES[selectedCity];
   const lines = dayEvents.map(ev => {
+    if (ev.type === "sky") return skyEventLine(ev);
     const time = fmtLocal(ev.time, city.tz);
     if (ev.type === "new") return `بداية دورة قمرية جديدة – الساعة ${time}`;
     if (ev.type === "full") return `اكتمال القمر (بدر) – الساعة ${time}`;
@@ -868,8 +941,54 @@ function renderSunMoon(s) {
   const note = $("whiteNightNote");
   note.textContent = noNight ? t("sun.noNight", LANG) : "";
   note.hidden = !noNight;
+
+  renderDayDetail(s);
 }
 
+
+/* Everything about the selected day that is not one of the four sun times:
+ * how long the day is and how that is changing, how long twilight lasts, when
+ * the Moon rises and sets and how far away it is, and any events. */
+function renderDayDetail(iso) {
+  const box = $("dayDetail");
+  if (!box) return;
+  const city = CITIES[selectedCity];
+  const d = dayDetail(iso, selectedCity);
+  const rows = [];
+  const push = (label, value) => rows.push(
+    `<div class="event-row"><span class="ev-label">${label}</span>` +
+    `<span class="ev-time">${value}</span></div>`);
+
+  if (d.dayLengthSeconds !== null) {
+    let v = fmtDuration(d.dayLengthSeconds);
+    if (d.dayLengthDeltaSeconds !== null && Math.abs(d.dayLengthDeltaSeconds) >= 1) {
+      const key = d.dayLengthDeltaSeconds > 0 ? "sun.longerBy" : "sun.shorterBy";
+      v += ` · ${t(key, LANG)} ${fmtDuration(d.dayLengthDeltaSeconds)}`;
+    }
+    push(t("sun.dayLength", LANG), v);
+  }
+  push(t("sun.twilight", LANG),
+       d.twilightSeconds === null ? t("sun.noNightShort", LANG) : fmtDuration(d.twilightSeconds));
+
+  /* The Moon rises ~50 minutes later each day, so roughly one day in 29 has
+   * no moonrise at all and another has no moonset. Named, not blanked. */
+  push(t("moon.rise", LANG), d.moonrise
+    ? fmtLocal(d.moonrise, city.tz) + (d.moonriseAz === null ? "" : ` · ${Math.round(d.moonriseAz)}°`)
+    : t("panel.none", LANG));
+  push(t("moon.set", LANG), d.moonset
+    ? fmtLocal(d.moonset, city.tz) + (d.moonsetAz === null ? "" : ` · ${Math.round(d.moonsetAz)}°`)
+    : t("panel.none", LANG));
+  push(t("moon.distance", LANG), fmtKm(d.moonDistanceKm));
+  if (d.earthshine) push(t("moon.earthshine", LANG), "✓");
+
+  /* One label, however many events -- repeating "Today" down the panel
+   * reads as a bug rather than a list. */
+  if (d.events.length) {
+    push(t("panel.events", LANG), d.events.map(skyEventLine).join("<br>"));
+  }
+
+  box.innerHTML = rows.join("");
+}
 
 /* ---------- lunar cycle events (new/full moon instants + eclipses) ---------- */
 function eclipsesBetween(startDate, endDate) {
