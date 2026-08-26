@@ -82,6 +82,7 @@ const STRINGS = {
   "cycles.eclipseSeasonWhat": {"ar": "لا يقع كسوف أو خسوف إلا حين تمر الشمس قرب إحدى عقدتي مدار القمر، وهو ما يحدث مرتين في السنة لنحو ٣٤ يوماً. الفاصل بينهما ١٧٣٫٣ يوماً لا ١٨٢٫٦، لأن السنة العقدية ٣٤٦٫٦٢ يوماً فقط — ولذلك تتراجع مواسم الكسوف نحو ١٩ يوماً كل سنة.", "en": "Eclipses are only possible when the Sun passes near one of the Moon’s orbital nodes, which happens twice a year for about 34 days. The two windows are 173.3 days apart rather than 182.6, because the draconic year is only 346.62 days — which is why eclipse seasons creep about 19 days backwards every year."},
   "cycles.fullMoonCycle": {"ar": "دورة البدر الكامل", "en": "Full moon cycle"},
   "cycles.fullMoonCycleWhat": {"ar": "٤١١٫٧٨ يوماً: المدة التي يعود بعدها البدر ليتزامن مع أقرب نقطة في مدار القمر. هذه هي حقيقة «موسم القمر العملاق».", "en": "411.78 days: the beat between the anomalistic and synodic months, after which full moon again coincides with perigee. That is what a “supermoon season” actually is."},
+  "cycles.moonTitle": {"ar": "دورات القمر الطويلة", "en": "The Moon’s long cycles"},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

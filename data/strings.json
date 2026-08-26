@@ -312,6 +312,10 @@
     "cycles.fullMoonCycleWhat": {
       "ar": "٤١١٫٧٨ يوماً: المدة التي يعود بعدها البدر ليتزامن مع أقرب نقطة في مدار القمر. هذه هي حقيقة «موسم القمر العملاق».",
       "en": "411.78 days: the beat between the anomalistic and synodic months, after which full moon again coincides with perigee. That is what a “supermoon season” actually is."
+    },
+    "cycles.moonTitle": {
+      "ar": "دورات القمر الطويلة",
+      "en": "The Moon’s long cycles"
     }
   }
 }

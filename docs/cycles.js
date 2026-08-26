@@ -127,3 +127,35 @@ function driftComparison(fromNy, fromHy, step, rows) {
   }
   return out;
 }
+
+
+/* --- the lunar standstill ------------------------------------------------
+ *
+ * The Moon's orbit is tilted 5.14 deg to the ecliptic, and that tilt itself
+ * rotates: the ascending node regresses through the whole zodiac in 18.6
+ * years. When the node reaches 0 deg the two tilts add -- 23.44 + 5.14 =
+ * 28.58 deg -- and the Moon's rising point swings its widest along the
+ * horizon. That is a major standstill. The last was 2024-25 and the next is
+ * around 2043: the longest cycle a person can watch unaided, and the reason
+ * some ancient monuments align to moonrise rather than sunrise.
+ */
+const LUNAR_NODAL_YEARS = 18.613;
+
+/* Next Julian Day at or after `fromJD` when the ascending node passes 0 deg.
+ * The node regresses, so the longitude runs downwards through zero. */
+function nextMajorStandstillJD(fromJD) {
+  let prev = lunarNodeLongitude(fromJD);
+  for (let jd = fromJD + 1; jd < fromJD + LUNAR_NODAL_YEARS * 366 + 400; jd += 1) {
+    const cur = lunarNodeLongitude(jd);
+    if (cur > prev) {          // wrapped past 0 going down
+      let lo = jd - 1, hi = jd;
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2;
+        if (lunarNodeLongitude(mid) > 180) lo = mid; else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    prev = cur;
+  }
+  return null;
+}

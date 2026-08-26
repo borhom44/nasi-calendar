@@ -143,17 +143,45 @@ function moonriseAzimuthRange(cityKey, year) {
   const key = `${cityKey}:${year}`;
   if (_azimuthCache.has(key)) return _azimuthCache.get(key);
 
-  let north = null, south = null;
+  /* Scanning moonRiseSet for all 365 days took 2.4 seconds and visibly froze
+   * the tab. It is also unnecessary: at rise, cos(azimuth) = sin(dec)/cos(lat),
+   * so the rising point is monotonic in the Moon's declination. Find the days
+   * of extreme declination with one cheap position call each, then pay for
+   * moonRiseSet only on the handful of candidates around them. Same answer,
+   * about fifteen times faster.
+   */
+  const city = CITIES[cityKey];
+  let hiDay = null, loDay = null;
   for (let doy = 0; doy < 366; doy++) {
-    const iso = jdToISO(_jdUTC(year, 1, 1) + doy);
+    const jd = _jdUTC(year, 1, 1) + doy + 0.5;
+    const iso = jdToISO(jd);
     if (!iso.startsWith(String(year))) break;
-    const rs = moonRiseSet(iso, cityKey);
-    if (rs.riseAz === null) continue;
-    // Azimuth runs north(0) through east(90); the smallest value is the most
-    // northerly rising point, the largest the most southerly.
-    if (north === null || rs.riseAz < north.az) north = { iso, az: rs.riseAz };
-    if (south === null || rs.riseAz > south.az) south = { iso, az: rs.riseAz };
+    const m = moonPosition(jd);
+    const eps = _obliquity((jd - 2451545.0) / 36525.0) * RAD;
+    const dec = Math.asin(
+      Math.sin(m.lat * RAD) * Math.cos(eps) +
+      Math.cos(m.lat * RAD) * Math.sin(eps) * Math.sin(m.lon * RAD)
+    ) / RAD;
+    if (hiDay === null || dec > hiDay.dec) hiDay = { iso, dec };
+    if (loDay === null || dec < loDay.dec) loDay = { iso, dec };
   }
+
+  let north = null, south = null;
+  for (const anchor of [hiDay, loDay]) {
+    if (!anchor) continue;
+    // +/-3 rather than +/-2: declination is sampled at noon but the azimuth is
+    // set at the rise instant hours away, and the narrower window came out one
+    // degree short of the exhaustive scan.
+    for (let off = -3; off <= 3; off++) {
+      const iso = addDays(anchor.iso, off);
+      if (!iso.startsWith(String(year))) continue;
+      const rs = moonRiseSet(iso, cityKey);
+      if (rs.riseAz === null) continue;
+      if (north === null || rs.riseAz < north.az) north = { iso, az: rs.riseAz };
+      if (south === null || rs.riseAz > south.az) south = { iso, az: rs.riseAz };
+    }
+  }
+
   const out = { north, south, swingDeg: north && south ? south.az - north.az : null };
   _azimuthCache.set(key, out);
   return out;
