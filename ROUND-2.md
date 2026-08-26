@@ -47,105 +47,92 @@ been looking at another city first, and wrong by whole hours, not minutes.
 
 ---
 
-## His items
+## His items — answered 26 Aug 2026
 
-### A. A settings page or icon
+### A. Settings — **gear icon in the header, opening a modal** (proposed)
 
-Location and language move into it. Question of what else — proposals below.
+He asked what "modal" meant. The three options:
 
-### C. Should the .ics link dim for a custom location?
-
-Yes, but there is a bigger question underneath it — see "the structural
-question" below. Custom coordinates genuinely have no feed: the filename is a
-city key, and a feed for arbitrary coordinates could not be regenerated from
-its own URL. The Sky-tab note already says so in words.
-
-### E. The font in "this part" is a bit big
-
-Needs pinning down — which part. Current sizes:
-
-| | desktop | mobile |
+| | What it is | Cost |
 |---|---|---|
-| sun tile time (`05:05`) | 1.05rem | 0.95rem |
-| sun tile label | 0.78rem | 0.7rem |
-| custom-city labels/buttons | 0.85rem | 0.85rem |
-| custom-city inputs/selects | **16px** | **16px** |
+| **Tab** | a sixth item in the bottom bar | Eats a tab slot; settings is not content you browse |
+| **Modal** | gear in the header, opens a centred overlay over a dimmed page, closes on Esc / X / tap-outside | Conventional; costs nothing structurally |
+| **Drawer** | slides in from the edge | Same as a modal with different motion |
 
-**Trap:** the 16px on inputs and selects is load-bearing. Below 16px, iOS
-zooms the whole page when the field takes focus — that bug was found and fixed
-on 25 Aug. If the inputs are what feels big, the fix is a `@media (pointer: fine)`
-override so desktop can shrink while touch keeps 16px.
+Recommend the **modal**. Merging Sky and Cycles frees a tab slot, so a tab
+*would* fit — but settings is set-and-forget, not something you browse.
 
-### F. Merge Sky and Cycles into one tab
+**Trade-off to accept:** the language toggle is one tap today, in the header.
+Moving it into settings makes it three. If that matters, the gear replaces the
+toggle but language stays the first row in the modal.
 
-**Trap:** Cycles defers its most expensive work until the tab is opened —
-`showTab` calls `renderCycles` in a `setTimeout` precisely because it is slow.
-Merging puts that cost on every Sky open unless the cycles half stays lazy
-behind a collapse or an intersection observer.
+### B/C. The .ics block moves to the Calendar tab — his decision
 
-### G. "About" holds both the .ics block and the FAQ
+- **Calendar tab only.** Not on every tab.
+- **No city or language picker there.** It follows the settings city and
+  language. Both `#subCity` and `#subLang` are deleted — this is what finally
+  satisfies the Phase 3 rule that a city is chosen in one place.
+- A **footnote** explains that language and location come from settings.
+- **When a custom lat/lon is set, the whole block dims** and shows that same
+  note, because arbitrary coordinates have no feed.
 
-His read: those are two unrelated things. The .ics is *the product in another
-format*, so it belongs near the calendar — possibly collapsed behind a
-disclosure. The FAQ is reference material and can stay in About.
+### E. The font — identified
 
----
+It is the **subscribe picker's selects**: `#subscribe select { font-size: 16px }`
+sitting beside `.sub-label` at `0.85rem` (13.6px). The selects are ~18% larger
+than every label around them, which is what reads as "big".
 
-## The structural question underneath C, A and G
+**Trap, again:** the 16px is the iOS zoom guard. Fix is
+`@media (pointer: fine) { #subscribe select { font-size: 0.85rem } }` so desktop
+shrinks and touch keeps 16px. Never lower the touch value.
 
-**There are two city selectors.** `#citySel` on the Sky tab drives the
-displayed sun and moon times; `#subCity` in the About tab drives the feed URL.
-They are independent — you can view Jakarta and copy Cairo's link.
+Two other things in his screenshot were **already fixed and cached** — the
+picker showing Arabic inside an English page, and only Cairo and Barcelona.
+Live now: 33 cities, six regions, correct language. `Cache-Control: no-cache`
+went on index.html the same day, so this staleness does not recur.
 
-That contradicts what he asked for in Phase 3: cities "should be done in one
-place and shows up the result in all other places."
+### F. Merged tab is called **"Cycles"** — his decision
 
-If city selection becomes one global setting, then C answers itself: pick a
-custom location and the subscribe link has nothing to point at, so it dims with
-an explanation. And G gets easier, because the .ics block stops needing its own
-picker and becomes a link plus a copy button.
+Still lazy: Cycles defers its expensive render until the tab opens. Merged, the
+cycles half must stay behind a collapse or an intersection observer or every
+Sky open pays for it.
 
-**One thing to keep:** UI language and feed language are deliberately separate
-and that is worth preserving. Someone reading in Arabic may want the English
-feed. Verified working today. A single "language" setting must not collapse them.
-
----
-
-## What else could go in settings — proposals
-
-Grounded in what the app actually does today, not a wish list.
-
-| Setting | Today | Note |
-|---|---|---|
-| **Location** | Sky tab | His. Becomes the single source — see above |
-| **UI language** | header toggle | His |
-| **Feed language** | About tab | Keep separate from UI language |
-| **Theme** | auto only, via `prefers-color-scheme` | No manual override exists. Light / Dark / System is cheap and commonly wanted |
-| **Time format** | 24h, hardcoded | 12h option. Touches the feed too, or deliberately does not |
-| **Week starts on** | Sunday, via `getUTCDay()` | Saturday is normal in much of the Arab world, Monday in Europe. Touches the grid and the weekday header |
-| **Numerals** | Western, deliberately | ٠١٢٣ vs 0123. **Trap:** this was a deliberate decision — `Intl` with an `ar-*` locale gives Arabic-Indic and the two would then disagree on the same screen. All-or-nothing, every formatter |
-| **Converter rows** | all three always | Gregorian / official Hijri / Nasi' — let someone hide a row they never use |
-| **Show computed dates** | always shown, marked | The 1600–2200 extension outside the book's table. A toggle to hide them entirely, for someone who only trusts the table |
-| **Default tab** | Calendar | Minor |
-
-My own suggestion, not from the list above: **the settings icon should show
-the current city** next to it, or the location becomes invisible state that
-people forget is set.
+### G. About keeps the FAQ only
 
 ---
 
-## Open questions
+## Two objections to settle before building
 
-1. **Settings as a page, a panel, or a modal?** A modal keeps the tab bar at
-   five items; a page makes it six.
-2. **Which font felt big** — the sun tiles, the custom-location controls, or
-   the whole Sky panel?
-3. **Merged tab name** if Sky and Cycles combine. "Sky" covering the long
-   cycles is a stretch.
-4. **Does the .ics disclosure sit under the calendar on every tab, or only the
-   Calendar tab?**
-5. **Does one global city replace both selectors** — confirming the Phase 3
-   intent — or do they stay independent on purpose?
+### 1. "Download the calendar button" would break the core promise
+
+He wrote "a simple download the calendar button". A **download** hands over an
+`.ics` file, and opening that file **imports** it — which is the exact thing the
+README, the FAQ and the on-page steps all tell people not to do. An import
+copies thousands of events in once, never updates, and cannot be bulk-deleted.
+
+Same word, opposite outcome. Proposal — one primary button that *subscribes*:
+
+- **Google Calendar:** `https://calendar.google.com/calendar/r?cid=<encoded https URL>`
+  adds it as a subscription in one click.
+- **Apple Calendar / Outlook:** the same URL with the `webcal://` scheme is
+  handled natively as a subscription.
+- **Copy link** stays as the fallback that always works.
+
+Wording should say *Add to my calendar*, never *Download*.
+
+### 2. One language, or two?
+
+He wrote "it is the same city and language in the settings" — one language
+setting driving both the interface and the feed. That **contradicts** the
+separation flagged earlier, which is live and working today: someone reading
+the app in Arabic can currently take the English feed.
+
+The real case for two: a shared or work calendar where Latin-script event
+titles are wanted, read by someone who prefers the app in Arabic.
+
+Middle option: **one setting**, and the footnote mentions that swapping `-en`
+on the URL gives the other language. Keeps the capability, drops the control.
+**His call.**
 
 ---
 
