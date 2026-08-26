@@ -146,17 +146,13 @@
    * and language is a setting rather than a destination, so it does not belong
    * among the navigation targets in the first place. */
   header { position: relative; }
-  .lang-toggle { position: absolute; top: 14px; inset-inline-end: 14px;
-                 border: 1px solid var(--line); background: var(--panel);
-                 color: var(--muted); border-radius: 8px; padding: 6px 12px;
-                 font-size: 0.8rem; font-family: inherit; cursor: pointer;
-                 min-height: 32px; }
-  .lang-toggle:hover { background: var(--accent-soft); color: var(--accent); }
-  @media (max-width: 640px) { .lang-toggle { top: 10px; inset-inline-end: 10px;
-                                             padding: 4px 9px; font-size: 0.75rem; } }
 
   td.grid-cell { position: relative; }
-  .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
+  /* The day number has no text-align of its own, so it follows the page
+   * direction and sits on the START side. Pinning the moon to `left` therefore
+   * put the two on top of each other in English while looking fine in Arabic.
+   * inset-inline-end puts it on the opposite side to the number in BOTH. */
+  .moon-corner { position: absolute; top: 3px; inset-inline-end: 3px; opacity: 0.9; pointer-events: none; }
 
   .sun-moon-grid { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
   @media (max-width: 640px) { .sun-moon-grid { grid-template-columns: 1fr; } }
@@ -377,7 +373,6 @@
   /* ---------- header actions ---------- */
   .header-actions { position: absolute; top: 14px; inset-inline-end: 14px;
                     display: flex; align-items: center; gap: 6px; }
-  .header-actions .lang-toggle { position: static; }
   .icon-btn { border: 1px solid var(--line); background: var(--panel); color: var(--muted);
               border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; font-family: inherit;
               cursor: pointer; min-height: 32px; display: inline-flex; align-items: center;
@@ -478,7 +473,6 @@
 <body>
 <header>
   <div class="header-actions">
-    <button type="button" id="langToggle" class="lang-toggle"></button>
     <button type="button" id="settingsBtn" class="icon-btn" aria-haspopup="dialog"
             data-i18n-attr="aria-label:ui.settingsOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="who" id="settingsWho"></span></button>
   </div>
@@ -755,7 +749,7 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=78024089"></script>
+<script src="strings-data.js?v=5eb1d2d9"></script>
 <script src="cities-data.js?v=1af891a4"></script>
 <script src="moon.js?v=a4abf928"></script>
 <script src="solar.js?v=4961c053"></script>
@@ -1113,16 +1107,15 @@ function applyLanguage(lang) {
     el.setAttribute(attr, t(key, lang));
   }
 
-  const toggle = $("langToggle");
-  if (toggle) {
-    toggle.textContent = t("ui.langToggle", lang);
-    toggle.title = t("ui.langToggleTitle", lang);
-  }
   document.title = t("ui.appTitle", lang) + " | Nasi' Calendar";
 
   // Caches hold formatted strings and label lists, so they must go.
   _monthEventCache.clear();
   fillMonthSelects();
+  /* The weekday row is built once at init and on a week-start change, so it
+   * never followed the language: an English page kept أحد/اثنين across the top
+   * of the grid. renderGrid() does not touch the header, only the body. */
+  renderWeekdayHeader();
   fillCitySelect();
   $("citySel").value = selectedCity;
   $("citySelLabel").textContent = t("city.label", lang);
@@ -1595,8 +1588,6 @@ function renderMoonEvents(s) {
   $("navYear").addEventListener("change", () => gotoMonth(+$("navYear").value, viewMonth));
   $("todayBtn").addEventListener("click", () => setDate(todayISO()));
   applyLanguage(LANG);   // also fills the month and city selects
-  $("langToggle").addEventListener("click",
-    () => applyLanguage(LANG === "ar" ? "en" : "ar"));
   $("tabBtnCycles").textContent = t("tab.cycles", LANG);
   $("citySelLabel").textContent = t("city.label", LANG);
   fillCitySelect();
