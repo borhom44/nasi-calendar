@@ -301,7 +301,7 @@ Full translation, not partial — half-translated apps read as broken.
 
 ---
 
-## Phase 5 — VPS migration (supervised) — READY, waiting on one root paste
+## Phase 5 — VPS migration (supervised) — DONE 26 Aug 2026
 
 Deliberately last, and **not** an unattended job: DNS and TLS mistakes take the
 live URL down and every subscriber's feed with it.
@@ -337,16 +337,37 @@ service on a machine holding health and loan records:
 
 ---
 
-## Phase 5 status
+## Phase 5 status — LIVE
 
-Everything that does not need root is done and tested on the box:
-the app is at `/home/personal/nasi-calendar`, the feed generator runs on
-`127.0.0.1:8971` with no dependencies beyond the standard library, and it
-serves `nasi-cairo-full-5y.ics` byte-identically to the committed static
-file with CRLF intact.
+`nasi.ibrahimabdelrahim.cloud` moved from GitHub Pages to the VPS on
+26 Aug 2026. `A nasi -> 186.240.155.88`; both public resolvers had it on the
+first check. The old `borhom44.github.io/nasi-calendar/*` paths still 301
+through to the live site, so nothing published before the move is broken.
 
-What remains is a single paste as root — see `vps/DEPLOY.md`. No standing
-privilege is granted and sudo keeps its password.
+| | |
+|---|---|
+| Certificate | Let's Encrypt, DNS-01, issued **before** the cutover so no window served an invalid cert. Expires 24 Nov 2026; `certbot.timer` active |
+| Feed service | `nasi-feeds.service`, user `personal`, `127.0.0.1:8971`, enabled at boot |
+| Cities with links | **33**, up from 2 — feeds are generated per request, ~190 ms cold, 3 ms cached |
+| On the wire | gzip: 2,529,771 → **139,121 bytes**, 18.2× smaller per subscriber refresh |
+| Isolation | nginx binds the calendar to `186.240.155.88:443`; Personal OS keeps `100.126.157.23:443`. Never a shared listen address |
+| Rollback | one DNS record — Pages stays configured, `docs/data/*.ics` stays committed |
+
+Four things the plan did not anticipate, all found by verifying rather than
+assuming, all fixed in `vps/root-install.sh`:
+
+1. `http2 on;` is nginx ≥ 1.25.1; the box runs 1.24.0. `nginx -t` caught it
+   before the reload, so the running config was never touched.
+2. nginx workers are `www-data` and `/home/personal` is 750 — `try_files`
+   could not stat the docroot and every static file 404'd.
+3. `ufw` was active and had never needed public web ports, Personal OS being
+   Tailscale-only. 80 and 443 added; no existing rule removed.
+4. Feeds were served uncompressed. They gzip to 5.5%.
+
+The root work was staged as a checksum-verified script rather than a pasted
+heredoc: a browser terminal that drops one character inside a heredoc writes a
+subtly broken config instead of failing. No standing privilege was granted and
+sudo keeps its password.
 
 ---
 

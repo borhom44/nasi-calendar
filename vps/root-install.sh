@@ -114,6 +114,16 @@ server {
     root /home/personal/nasi-calendar/docs;
     index index.html;
 
+    # A feed is 2.5 MB of plain text that gzips to about 139 KB, and every
+    # subscriber's calendar refetches it on a schedule -- uncompressed that is
+    # 18x the bandwidth for no gain. gzip_proxied is required because /data/
+    # comes back through the proxy, where gzip is off by default.
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/calendar text/css application/javascript application/json image/svg+xml;
+
     # Feeds are generated per request, never stored. The service is on
     # loopback, so it is reachable only through this proxy.
     location /data/ {
@@ -122,7 +132,18 @@ server {
         proxy_read_timeout 60s;
     }
 
-    location / { try_files $uri $uri/ =404; }
+    # Every asset carries a content hash in its query string, so it can be
+    # cached hard. index.html is the one file that cannot -- it is what NAMES
+    # those hashes, so a stale copy pins the whole app to old assets. A regex
+    # location outranks the prefix one below, which is what splits them.
+    location ~* \.(js|css|svg)$ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ =404;
+    }
 }
 CONF
 
@@ -170,4 +191,8 @@ curl -s -o /dev/null -w "      feed:  HTTP %{http_code}, %{size_download} bytes 
   --resolve "$DOMAIN:443:$PUBIP" "https://$DOMAIN/data/nasi-cairo-full-5y-en.ics"
 
 echo
-echo "=== done. DNS still points at GitHub Pages -- nothing is live yet. ==="
+if [ "$(getent hosts "$DOMAIN" | awk '{print $1}' | head -1)" = "$PUBIP" ]; then
+  echo "=== done. $DOMAIN resolves here -- this box is serving the live site. ==="
+else
+  echo "=== done. $DOMAIN does not resolve here yet -- nothing is live. ==="
+fi

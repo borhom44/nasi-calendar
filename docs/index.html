@@ -429,16 +429,16 @@
       <select id="citySel"></select>
     </div>
     <div class="custom-city" id="customCity" hidden>
-      <label for="customLat" id="customLatLabel"></label>
+      <label for="customLat" id="customLatLabel" data-i18n="city.lat"></label>
       <input type="number" id="customLat" step="0.0001" min="-90" max="90" inputmode="decimal">
-      <label for="customLon" id="customLonLabel"></label>
+      <label for="customLon" id="customLonLabel" data-i18n="city.lon"></label>
       <input type="number" id="customLon" step="0.0001" min="-180" max="180" inputmode="decimal">
-      <label for="customTz" id="customTzLabel"></label>
+      <label for="customTz" id="customTzLabel" data-i18n="city.tz"></label>
       <select id="customTz"></select>
-      <button type="button" id="customApply"></button>
-      <button type="button" id="customLocate"></button>
-      <p class="hint" id="customError" hidden></p>
-      <p class="hint" id="customNote" style="margin-bottom:0;"></p>
+      <button type="button" id="customApply" data-i18n="city.apply"></button>
+      <button type="button" id="customLocate" data-i18n="city.locate"></button>
+      <p class="hint" id="customError" data-i18n="city.badCoords" hidden></p>
+      <p class="hint" id="customNote" data-i18n="city.customNote" style="margin-bottom:0;"></p>
     </div>
     <div class="sun-moon-grid">
       <div class="moon-big" id="moonBig"></div>
@@ -504,16 +504,16 @@
     </p>
 
     <div class="sub-row">
-      <span class="sub-label" id="subLangLabel"></span>
+      <span class="sub-label" id="subLangLabel" data-i18n="sub.language"></span>
       <select id="subLang"></select>
-      <span class="sub-label" id="subCityLabel"></span>
+      <span class="sub-label" id="subCityLabel" data-i18n="sub.city"></span>
       <select id="subCity"></select>
     </div>
     <div class="sub-row">
       <code class="sub-url" id="subUrl"></code>
-      <button class="sub-copy" data-target="subUrl" id="subCopy"></button>
+      <button class="sub-copy" data-target="subUrl" id="subCopy" data-i18n="sub.copy"></button>
     </div>
-    <p class="hint" id="subMoreCities" style="margin-top:-4px;"></p>
+    <p class="hint" id="subMoreCities" data-i18n="sub.moreCities" style="margin-top:-4px;"></p>
 
     <ol class="sub-steps" data-i18n-html="ui.subSteps">
       <li data-i18n="ui.step1">انسخ رابط مدينتك من الأعلى.</li>
@@ -576,8 +576,8 @@
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=78d52e2e"></script>
-<script src="cities-data.js?v=96984f0c"></script>
+<script src="strings-data.js?v=95e66a29"></script>
+<script src="cities-data.js?v=1af891a4"></script>
 <script src="moon.js?v=a4abf928"></script>
 <script src="solar.js?v=cae692b4"></script>
 <script src="moon-events.js?v=1e5c5a4e"></script>
@@ -877,6 +877,11 @@ function fillMonthSelects() {
 
 /* Everything that has to change when the language does. Called once at load
  * and again on every toggle, so the two paths cannot drift. */
+/* The subscribe picker lives inside init(), but its option TEXT is city and
+ * region names, so it has to be rebuilt whenever the language changes. Set by
+ * init(); the same idiom applyLanguage already uses for renderFAQ. */
+let renderSubscribePicker = null;
+
 function applyLanguage(lang) {
   LANG = lang;
   try { localStorage.setItem("nasi.lang", lang); } catch (e) { /* private mode */ }
@@ -912,6 +917,7 @@ function applyLanguage(lang) {
   $("citySel").value = selectedCity;
   $("citySelLabel").textContent = t("city.label", lang);
   $("tabBtnCycles").textContent = t("tab.cycles", lang);
+  if (renderSubscribePicker) renderSubscribePicker();
   // applyLanguage also runs during init, BEFORE a date has been picked, so
   // these re-renders have to tolerate that. Without the guard, init died on
   // setDate(null) and the toggle silently never worked.
@@ -1318,13 +1324,11 @@ function renderMoonEvents(s) {
     }
     sel.value = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   })();
-  $("customTzLabel").textContent = t("city.tz", LANG);
-  $("customLatLabel").textContent = t("city.lat", LANG);
-  $("customLonLabel").textContent = t("city.lon", LANG);
-  $("customApply").textContent = t("city.apply", LANG);
-  $("customLocate").textContent = t("city.locate", LANG);
-  $("customNote").textContent = t("city.customNote", LANG);
-  $("customError").textContent = t("city.badCoords", LANG);
+  /* These seven carry data-i18n and are filled by applyLanguage, like every
+   * other label. Setting them here as well would look harmless but freezes
+   * them at load: applyLanguage only revisits [data-i18n] elements, so a
+   * JS-populated label silently keeps its first language for the whole
+   * session -- which is exactly what the custom-location block used to do. */
 
   const redraw = () => { renderSunMoon(pickedISO); renderMoonEvents(pickedISO); renderGrid(); };
   const commitCustom = () => {
@@ -1402,21 +1406,26 @@ function renderMoonEvents(s) {
     $("subUrl").textContent =
       FEED_BASE + feedFileName($("subCity").value, $("subLang").value);
   }
-  (function initSubscribePicker() {
-    $("subLangLabel").textContent = t("sub.language", LANG);
-    $("subCityLabel").textContent = t("sub.city", LANG);
-    $("subCopy").textContent = t("sub.copy", LANG);
-    $("subMoreCities").textContent = t("sub.moreCities", LANG);
-
+  /* Rebuilt on every language change, not just at load. The four labels ride
+   * the data-i18n sweep, but the OPTION text is city and region names, which
+   * no attribute can cover -- so an English reader was being offered a list of
+   * Arabic city names. Both selections survive the rebuild. */
+  renderSubscribePicker = function () {
     const langSel = $("subLang");
+    const citySel = $("subCity");
+    const keepLang = langSel.value || LANG;
+    const keepCity = citySel.value || (CITIES[selectedCity] && CITIES[selectedCity].feed
+      ? selectedCity : citiesByRegion(true)[0].cities[0]);
+
+    langSel.textContent = "";
     for (const code of ["ar", "en"]) {
       const o = document.createElement("option");
       o.value = code; o.textContent = t("lang." + code, LANG);
       langSel.appendChild(o);
     }
-    langSel.value = LANG;
+    langSel.value = keepLang;
 
-    const citySel = $("subCity");
+    citySel.textContent = "";
     for (const { region, cities } of citiesByRegion(true)) {
       const g = document.createElement("optgroup");
       g.label = region[LANG] || region.ar;
@@ -1427,13 +1436,14 @@ function renderMoonEvents(s) {
       }
       citySel.appendChild(g);
     }
-    citySel.value = CITIES[selectedCity] && CITIES[selectedCity].feed
-      ? selectedCity : citiesByRegion(true)[0].cities[0];
+    citySel.value = keepCity;
+    if (!citySel.value) citySel.value = citiesByRegion(true)[0].cities[0];
 
-    langSel.addEventListener("change", refreshSubUrl);
-    citySel.addEventListener("change", refreshSubUrl);
     refreshSubUrl();
-  })();
+  };
+  $("subLang").addEventListener("change", refreshSubUrl);
+  $("subCity").addEventListener("change", refreshSubUrl);
+  renderSubscribePicker();
 
   document.querySelectorAll(".sub-copy").forEach((btn) => {
     btn.addEventListener("click", async () => {

@@ -176,7 +176,9 @@ claiming a subdomain of yours on GitHub Pages.
 
 - Flip `feed: true` for the remaining 31 cities in `data/cities.json`; they need
   no files, only the flag, and the subscribe picker will offer them.
-- `docs/data/*.ics` can then be deleted from the repo — the server generates
-  them and the static copies would only go stale.
+- `docs/data/*.ics` stay for now. Deleting them is right eventually — the
+  server generates feeds and the static copies only go stale — but they are
+  the rollback: putting the CNAME back restores a GitHub Pages site that still
+  has working feeds. Delete them once the VPS has run unattended for a while.
 - nginx access logs finally answer how many people subscribe, which GitHub
   Pages never could.

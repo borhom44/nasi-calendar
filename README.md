@@ -45,12 +45,17 @@ ground truth rather than re-deriving the rule.
 Subscribe-by-URL feeds (Google Calendar → Add calendar → **From URL**, not
 Import). Pick one city — sun times differ between them:
 
+The **About** tab has a picker that builds the right link for your city and
+language. The pattern, if you would rather write it yourself:
+
 ```
-https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics
-https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y-en.ics
-https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics
-https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y-en.ics
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-<city>-full-5y.ics      # Arabic
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-<city>-full-5y-en.ics   # English
 ```
+
+All 33 city keys work — `cairo`, `mecca`, `jerusalem`, `istanbul`, `london`,
+`new-york`, `sao-paulo`, `kuala-lumpur`, and the rest. A key that is not a city
+returns 404 rather than a guess.
 
 One feed per city per language: Arabic keeps the historic unsuffixed name
 because people are already subscribed to it, English takes a `-en` suffix.
@@ -62,10 +67,11 @@ The 1-year and 100-year spans were retired. Importing rather than subscribing
 is unusable at any span, and at four sun events a day the 100-year file came
 to ~55 MB re-fetched daily by every subscriber.
 
-The app itself covers 33 cities and accepts arbitrary coordinates; only the two
-above have pre-generated feeds, because 33 cities × 2 languages is ~150 MB of
-static text. That constraint disappears once feeds are generated per request
-(see `vps/DEPLOY.md`).
+Feeds are generated when your calendar asks for one, not stored — which is why
+all 33 cities have links rather than the two that fitted in a static repo, and
+why arbitrary coordinates work in the app. A cold city takes about 190 ms to
+compute and 3 ms thereafter, and the response is gzipped: 2.5 MB of calendar
+text goes over the wire as about 139 KB.
 
 Every feed carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
 at their exact instants, so they land in the day grid rather than being buried in
@@ -82,13 +88,19 @@ events in once and is capped. When in doubt, subscribe.
 
 ### Why a custom domain
 
-The site is served by GitHub Pages but addressed at `nasi.ibrahimabdelrahim.cloud`
-(Hostinger DNS, `CNAME nasi -> borhom44.github.io`). This is the one decision here
-that cannot be walked back: an `.ics` URL, once it is sitting in someone's calendar
-subscription, can never be redirected — GitHub Pages is static and cannot issue a
-301 — and the publisher has no way to find out who subscribed or to contact them.
-A URL under a domain we control can be re-pointed at any host forever. A
-`github.io` path is only as durable as that repository's name.
+The site is addressed at `nasi.ibrahimabdelrahim.cloud` and, since 26 Aug 2026,
+served from the VPS (Hostinger DNS, `A nasi -> 186.240.155.88`). It began on
+GitHub Pages behind the same name, and that is the whole reason the custom
+domain existed from day one: an `.ics` URL, once it is sitting in someone's
+calendar subscription, can never be redirected — a static host cannot issue a
+301 — and the publisher has no way to find out who subscribed or to contact
+them. A URL under a domain we control can be re-pointed at any host forever,
+which is exactly what the move to the VPS did, without a single subscriber
+having to do anything. A `github.io` path is only as durable as that
+repository's name.
+
+Rollback is one DNS record: putting the CNAME back restores the Pages site,
+which is why `docs/data/*.ics` is still committed.
 
 The old `borhom44.github.io/nasi-calendar/*` paths still 301 to the new domain,
 so nothing published before the move is broken.
@@ -149,9 +161,10 @@ documented, intended placement, not an extraction error.
   browser copy `docs/cities-data.js` is generated from it.
 - `data/strings.json` — every user-visible string with `ar` and `en` side by
   side. `docs/strings-data.js` is generated from it.
-- `docs/data/nasi-{cairo,barcelona}-full-5y{,-en}.ics` — one feed per city per
-  language, 2026–2030.
-- `docs/index.html` — the web app (also what GitHub Pages serves): a month grid
+- `docs/data/nasi-{cairo,barcelona}-full-5y{,-en}.ics` — static feeds kept only
+  as the rollback path; the live site generates every city's feed per request
+  from `vps/feed_server.py`.
+- `docs/index.html` — the web app: a month grid
   (each Gregorian day shows its Nasi' date underneath, the convention the source
   table uses), a two-way converter, a sky panel and a cycles view.
 - `scripts/extract_spans.py` — PDF → `data/raw_spans.json` (colour-tagged text

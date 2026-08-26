@@ -88,7 +88,7 @@ const STRINGS = {
   "sub.copied": {"ar": "تم النسخ ✓", "en": "Copied ✓"},
   "lang.ar": {"ar": "العربية", "en": "Arabic"},
   "lang.en": {"ar": "الإنجليزية", "en": "English"},
-  "sub.moreCities": {"ar": "المدن الأخرى متاحة داخل التطبيق الآن، وستحصل على روابط اشتراك خاصة بها عند نقل الاستضافة.", "en": "The other cities work inside the app already; they get their own subscription links when hosting moves."},
+  "sub.moreCities": {"ar": "كل مدينة في التطبيق لها رابطها الخاص؛ يُولَّد الملف عند طلب تقويمك له.", "en": "Every city in the app has its own link; the file is generated when your calendar asks for it."},
   "city.custom": {"ar": "موقع مخصص…", "en": "Custom location…"},
   "city.customName": {"ar": "موقعي", "en": "My location"},
   "city.lat": {"ar": "خط العرض", "en": "Latitude"},
