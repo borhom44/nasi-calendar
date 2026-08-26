@@ -86,6 +86,11 @@
     table.conv td.d { width: 64px; } table.conv td.y { width: 84px; }
   }
 
+  /* "White night" is a phrase, not a time -- it will not fit at the size a
+   * 05:05 is set in, so it steps down rather than overflowing the cell. */
+  .sun-times .t.na { font-size: 0.8rem; line-height: 1.6; }
+  .hint.white-night { grid-column: 1 / -1; margin: 8px 0 0; }
+
   td.grid-cell { position: relative; }
   .moon-corner { position: absolute; top: 3px; left: 3px; opacity: 0.9; pointer-events: none; }
 
@@ -371,6 +376,7 @@
     <div class="sun-moon-grid">
       <div class="moon-big" id="moonBig"></div>
       <div class="sun-times" id="sunTimes"></div>
+      <p class="hint white-night" id="whiteNightNote" hidden></p>
     </div>
     <div class="events-list">
       <h3>أحداث الدورة القمرية الحالية</h3>
@@ -478,7 +484,7 @@
 <script src="solar.js?v=c15f28a9"></script>
 <script src="moon-events.js?v=0baa5099"></script>
 <script src="eclipses-data.js?v=152d4b3a"></script>
-<script src="faq-data.js?v=ef20068d"></script>
+<script src="faq-data.js?v=15aa89fb"></script>
 <!-- must load after nasi-calendar.js (addDays/daysBetween/NASI_RANGE) and
      moon-events.js (moonPhaseJDE/greg2JD) -- it builds on both -->
 <script src="nasi-extend.js?v=9d8fb601"></script>
@@ -719,10 +725,24 @@ function renderSunMoon(s) {
   }
 
   const city = CITIES[selectedCity];
-  const t = sunTimes(s, selectedCity);
+  const times = sunTimes(s, selectedCity);
+
+  /* Above 48.56 deg N the sun never reaches -18 at midsummer, so there is
+   * genuinely no astronomical night: first light and full darkness DO NOT
+   * OCCUR. That is a fact about the sky, not a gap in the data, so it is
+   * named rather than shown as a blank or a dash. Berlin has 69 such days
+   * a year, London 59, Paris 19. */
+  const noNight = times.firstLight === null || times.fullDark === null;
+
   $("sunTimes").innerHTML = sunEvents(LANG).map(([key, label]) =>
-    `<div class="cell"><div class="t">${fmtLocal(t[key], city.tz)}</div><div class="l">${label}</div></div>`
+    `<div class="cell"><div class="t${times[key] ? "" : " na"}">` +
+    `${times[key] ? fmtLocal(times[key], city.tz) : t("sun.noNightShort", LANG)}</div>` +
+    `<div class="l">${label}</div></div>`
   ).join("");
+
+  const note = $("whiteNightNote");
+  note.textContent = noNight ? t("sun.noNight", LANG) : "";
+  note.hidden = !noNight;
 }
 
 
@@ -742,9 +762,9 @@ const ECLIPSE_NAME = { T: "خسوف كلي", P: "خسوف جزئي", N: "خسو�
 function likelyVisibleAt(date, cityKey) {
   const city = CITIES[cityKey];
   const localISO = new Intl.DateTimeFormat("en-CA", { timeZone: city.tz }).format(date); // YYYY-MM-DD
-  const t = sunTimes(localISO, cityKey);
-  if (!t.sunrise || !t.sunset) return null;             // polar edge case, not our cities
-  return date < t.sunrise || date > t.sunset;
+  const times = sunTimes(localISO, cityKey);
+  if (!times.sunrise || !times.sunset) return null;     // polar edge case, not our cities
+  return date < times.sunrise || date > times.sunset;
 }
 
 function renderMoonEvents(s) {
