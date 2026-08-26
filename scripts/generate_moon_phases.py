@@ -12,10 +12,15 @@ eclipse catalog earlier in this project.
 """
 import json
 import math
+import sys
+from pathlib import Path
 
-DAYS = r"C:\Dev\nasi-calendar\data\nasi_days.json"
-OUT_JSON = r"C:\Dev\nasi-calendar\data\moon_phases.json"
-OUT_JS = r"C:\Dev\nasi-calendar\docs\moon-phases-data.js"
+# Derived from this file rather than hardcoded: the absolute Windows paths
+# these scripts carried meant none of them could run on the VPS.
+REPO = Path(__file__).resolve().parent.parent
+DAYS = str(REPO / "data" / "nasi_days.json")
+OUT_JSON = str(REPO / "data" / "moon_phases.json")
+OUT_JS = str(REPO / "docs" / "moon-phases-data.js")
 
 RAD = math.pi / 180.0
 
@@ -79,6 +84,10 @@ def greg_to_jd(y, m, d):
     return math.floor(365.25 * (y + 4716)) + math.floor(30.6001 * (m + 1)) + d + b - 1524.5
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from moon_position import illuminated_fraction  # noqa: E402
+
+
 def main():
     days = json.load(open(DAYS, encoding="utf-8"))
     out = []
@@ -97,9 +106,14 @@ def main():
         next_k, next_jd = min((t for t in times if t[1] > jd_noon), key=lambda t: t[1])
 
         age = jd_noon - prev_jd
-        synodic = next_jd - prev_jd
-        frac = age / synodic
-        illum = round(100 * (1 - math.cos(2 * math.pi * frac)) / 2)
+
+        # Illumination comes from the Moon's ACTUAL elongation from the Sun,
+        # not from how far through the lunation the day sits. The old formula
+        #     (1 - cos(2*pi * age / synodic)) / 2
+        # assumed uniform motion; the anomalistic month varies the Moon's
+        # speed by ~12%, so it ran up to 8.5 points out near the quarters --
+        # enough to show the wrong phase icon. See moon_position.py.
+        illum = round(100 * illuminated_fraction(jd_noon))
         out.append([illum, round(age, 1)])
 
     with open(OUT_JSON, "w", encoding="utf-8") as f:
