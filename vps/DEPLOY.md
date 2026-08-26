@@ -16,9 +16,9 @@ has been tested there:
 |---|---|
 | Python | 3.12.3, **no dependencies** — standard library only |
 | City registry validates on Linux | 33 cities, 6 regions, all IANA zones resolve |
-| String table validates | 168 rows, both languages present |
+| String table validates | 172 rows, both languages present |
 | `nasi-cairo-full-5y.ics` served | 200, `text/calendar`, 2,529,771 bytes |
-| Byte-identical to the committed static file | **yes** (ignoring `DTSTAMP`) |
+| Matches the committed static file | **no longer** — see “What subscribers will see” |
 | CRLF line endings preserved | 86,958 CRLF, **0 bare LF** |
 | A city with no static file (`jakarta`) | 200 — works only here |
 | Unknown city (`atlantis`) | 404, not a guess |
@@ -29,6 +29,26 @@ The Hostinger DNS hook was also round-tripped: a throwaway TXT record was
 added, confirmed present alongside every existing record, then removed, leaving
 the zone exactly as found. `overwrite: false` merges — **never pass true**, it
 replaces the whole zone and would take the `os` record with it.
+
+---
+
+## What subscribers will see change
+
+The static `.ics` files on GitHub Pages predate the review pass, so the cutover
+is **not** content-neutral. Measured against the live Cairo feed, same 9,266
+events, nothing added or dropped:
+
+| Change | Scope | Why |
+|---|---|---|
+| `sun-fajr-*` → `sun-first_light-*`, `sun-isha-*` → `sun-full_dark-*` | 3,652 events | The feed describes astronomical instants, not prayer times. A changed UID is a delete-and-recreate for the subscriber, but the old UIDs are absent from the new feed, so nothing duplicates. |
+| Two of the four daily labels and times | all 1,826 days | `فجر 04:42` → `أول الضوء 04:49`, `عشاء 19:17` → `الظلام التام 19:20`. Different solar depression angles — the old figures were prayer-time conventions wearing astronomical labels. |
+| Moon phase icon in the title | 216 of 1,826 days (11.8%) | The idealised-sinusoid bug. The old icon was simply wrong on those days. |
+
+Sunrise and sunset are unchanged, as are every moon and eclipse event.
+
+All three are corrections. But they are visible, and they arrive in calendars
+people already subscribe to, so they are worth deciding on deliberately rather
+than discovering later.
 
 ---
 
@@ -100,8 +120,7 @@ server {
 }
 
 server {
-    listen 186.240.155.88:443 ssl;
-    http2 on;
+    listen 186.240.155.88:443 ssl http2;
     server_name nasi.ibrahimabdelrahim.cloud;
 
     ssl_certificate     /etc/letsencrypt/live/nasi.ibrahimabdelrahim.cloud/fullchain.pem;
