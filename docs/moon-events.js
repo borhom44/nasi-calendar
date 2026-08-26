@@ -93,7 +93,10 @@ function moonEventsForDate(iso) {
 
 function fmtLocalDateTime(date, tz) {
   if (!date) return "--";
-  const parts = new Intl.DateTimeFormat("ar-EG", {
+  // en-GB, not ar-EG: an Arabic locale renders Arabic-Indic numerals and the
+  // grid, the sun panel and the cycles tab all use Western digits. Two numeral
+  // systems on one screen reads as a bug.
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric",
     hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(date);

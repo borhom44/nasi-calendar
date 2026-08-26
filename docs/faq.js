@@ -16,8 +16,10 @@ function renderFAQ(filterRaw) {
   list.innerHTML = "";
   let shown = 0;
 
-  FAQ_CATEGORIES.forEach((catName, catIdx) => {
-    const items = FAQ_DATA.filter(item => item.cat === catIdx && (
+  // Read per call, not captured: the language can change without a reload.
+  const cats = faqCategories(LANG), entries = faqEntries(LANG);
+  cats.forEach((catName, catIdx) => {
+    const items = entries.filter(item => item.cat === catIdx && (
       !filter || normalizeArabic(item.q).includes(filter) || normalizeArabic(item.a).includes(filter)
     ));
     if (!items.length) return;

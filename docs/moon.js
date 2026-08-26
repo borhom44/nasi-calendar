@@ -16,18 +16,24 @@ function moonPhaseForISO(iso) {
   return { illum, age, waxing };
 }
 
+/* Thresholds stay here -- generate_ics_full.py copies these exact numbers so
+ * the feed and the app cannot disagree about what phase a day is in. Only the
+ * WORDS moved to the string table, so the boundaries are still stated once. */
 const MOON_PHASE_NAMES = [
-  [6,  "محاق"],
-  [44, "هلال"],
-  [56, "تربيع"],
-  [94, "أحدب"],
-  [101,"بدر"],
+  [6,  "moon.phase.new"],
+  [44, "moon.phase.crescent"],
+  [56, "moon.phase.quarter"],
+  [94, "moon.phase.gibbous"],
+  [101,"moon.phase.full"],
 ];
-function moonPhaseName(illum, waxing) {
-  let base;
-  for (const [max, name] of MOON_PHASE_NAMES) { if (illum < max) { base = name; break; } }
-  if (base === "محاق" || base === "بدر") return base;
-  return base + (waxing ? " متزايد" : " متناقص");
+function moonPhaseName(illum, waxing, lang) {
+  const l = lang || (typeof LANG === "string" ? LANG : "ar");
+  let key;
+  for (const [max, k] of MOON_PHASE_NAMES) { if (illum < max) { key = k; break; } }
+  const base = t(key, l);
+  // New and full have no waxing/waning half to distinguish.
+  if (key === "moon.phase.new" || key === "moon.phase.full") return base;
+  return base + " " + t(waxing ? "moon.waxing" : "moon.waning", l);
 }
 
 /* Illuminated-region path inside a circle of radius r centred at (cx,cy).
