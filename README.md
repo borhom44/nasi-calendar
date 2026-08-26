@@ -42,21 +42,30 @@ ground truth rather than re-deriving the rule.
 
 **https://nasi.ibrahimabdelrahim.cloud/**
 
-Subscribe-by-URL feeds (Google Calendar → Add calendar → From URL). Pick one
-city, not both:
+Subscribe-by-URL feeds (Google Calendar → Add calendar → **From URL**, not
+Import). Pick one city — sun times differ between them:
 
 ```
 https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y-en.ics
 https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y.ics
+https://nasi.ibrahimabdelrahim.cloud/data/nasi-barcelona-full-5y-en.ics
 ```
 
-Three spans are published per city — swap `-5y` for `-1y` or `-100y`:
+One feed per city per language: Arabic keeps the historic unsuffixed name
+because people are already subscribed to it, English takes a `-en` suffix.
+Each covers 2026–2030 with 9,266 events in about 2.3 MB — 1,826 daily Nasi'
+dates, four timed sun events a day, and the new/full moon instants and lunar
+eclipses.
 
-| Span | Range | Events | Size | Timed sun events | Import? | Subscribe? |
-|------|-------|-------:|-----:|------------------|---------|------------|
-| `-5y`   | 2026–2030     | 9,266  | 2.3 MB  | yes | no | yes |
+The 1-year and 100-year spans were retired. Importing rather than subscribing
+is unusable at any span, and at four sun events a day the 100-year file came
+to ~55 MB re-fetched daily by every subscriber.
 
-Only the 5-year span ships. The 1-year and 100-year feeds were retired: importing rather than subscribing is unusable at any span, and at four sun events a day the 100-year file is ~55 MB re-fetched daily by every subscriber. Each city now has one feed per language -- Arabic keeps the historic unsuffixed name because it is already subscribed to, English takes a `-en` suffix.
+The app itself covers 33 cities and accepts arbitrary coordinates; only the two
+above have pre-generated feeds, because 33 cities × 2 languages is ~150 MB of
+static text. That constraint disappears once feeds are generated per request
+(see `vps/DEPLOY.md`).
 
 Every feed carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
 at their exact instants, so they land in the day grid rather than being buried in
@@ -136,13 +145,15 @@ documented, intended placement, not an extraction error.
 - `data/nasi_days.json` — every day in range, `{g: "YYYY-MM-DD", ny, nm, nd}`.
 - `data/nasi_months.json` — the same data compressed to month boundaries
   (~1,250 rows instead of ~36,890) — this is what the web page actually uses.
-- `docs/data/nasi-{cairo,barcelona}-full-{1y,5y,100y}.ics` — enriched Google
-  Calendar feeds (Nasi' dates + sun times + moon/eclipse events) at three spans.
-  `-1y` fits Google's manual-import cap; `-5y` (2026–2030) is the recommended
-  default; `-100y` covers the full range via subscribe-by-URL.
-- `docs/index.html` — the web app (also what GitHub Pages serves): a month-grid view (each
-  Gregorian day shows its Nasi' date underneath, the same convention the
-  source table uses) plus a two-way date converter.
+- `data/cities.json` — the city registry, sole source for all 33 cities. The
+  browser copy `docs/cities-data.js` is generated from it.
+- `data/strings.json` — every user-visible string with `ar` and `en` side by
+  side. `docs/strings-data.js` is generated from it.
+- `docs/data/nasi-{cairo,barcelona}-full-5y{,-en}.ics` — one feed per city per
+  language, 2026–2030.
+- `docs/index.html` — the web app (also what GitHub Pages serves): a month grid
+  (each Gregorian day shows its Nasi' date underneath, the convention the source
+  table uses), a two-way converter, a sky panel and a cycles view.
 - `scripts/extract_spans.py` — PDF → `data/raw_spans.json` (colour-tagged text
   spans; supplies the day digits).
 - `scripts/extract_labels.py` — PDF → `data/label_tokens.json` (the 1,250
@@ -183,19 +194,17 @@ Then open `http://localhost:8902`.
 Google Calendar's manual **Import** screen has an undocumented soft cap around
 ~1,000 events per file.
 
-- **Import directly** (works today, no hosting needed): Settings → Import &
-  Export → upload `docs/data/nasi-cairo-full-5y.ics` (or the Barcelona one). 786
-  events: 731 daily Nasi' dates carrying that city's fajr/sunrise/sunset/isha
-  and the moon's illumination in the description, plus 49 exact new/full-moon
-  instants and 6 real lunar eclipses as timed events.
-- **Five years** (recommended): `docs/data/nasi-{city}-full-5y.ics` covers
-  2026–2030 — 1,826 daily entries, 124 new/full-moon instants and 12 lunar
-  eclipses, 1,962 events in 631 KB. Comfortably under Google's 1 MB import
-  file-size limit, though the event count sits above the folklore ~1,000 cap,
-  so subscribe-by-URL is the reliable path.
-- **Full 2000–2100 range**: use `docs/data/nasi-{city}-full-100y.ics` (39,619
-  events) via "Add calendar → From URL". That path has no event-count ceiling
-  but needs a public HTTPS URL.
+**Subscribe, do not import.** Subscribing creates a separate calendar you can
+remove in one click and which refreshes itself; importing copies thousands of
+events into your own calendar with no way to delete them in bulk.
+
+In Google Calendar on a computer (the phone app cannot add a calendar by URL):
+Other calendars → **+** → **From URL** → paste one of the links above.
+
+Each feed carries, per day: the Nasi' date with a moon-phase icon in the title,
+the four sun events as timed entries at their real instants, and the moon's
+illumination and distance in the description. Plus the exact new and full moon
+instants and every real lunar eclipse from NASA's catalogue.
 
 Moon and eclipse times are written in **UTC** (the trailing `Z` form) rather
 than with a VTIMEZONE block. Two reasons: a client renders UTC in the viewer's

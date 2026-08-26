@@ -350,6 +350,33 @@ privilege is granted and sudo keeps its password.
 
 ---
 
+## Review pass — done
+
+Ran after all five phases, and it found five things that code review alone
+would not have. Each is recorded because the class of error matters more than
+the instance.
+
+**Two implementations agreeing proves little on its own.** The JS and Python
+halves were cross-checked numerically first: 924 sun-time values across 231
+city-days agree to 0.5 s with no null/non-null disagreements, and moon and sun
+position agree to 1.8 milliarcseconds over 1750–2250. That found nothing. Every
+real bug below came from an *edge*, not a disagreement.
+
+| Found | Why it mattered |
+|---|---|
+| A one-day hole at each calendar seam (`1999-12-08`, `2101-01-01` returned null) | Inside the advertised 1600–2200 range. The table's last month is a 1-day stub truncated by the table's own edge. |
+| A DST jump masquerading as the earliest sunset | Morocco drops an hour for Ramadan; Casablanca's earliest sunset came out 15 February instead of 4 December. |
+| Polar night reported as a white night | The exact opposite. Svalbard in December was told it had no darkness while sitting in permanent night. |
+| The 19-segment bar was invisible | `--accent-soft` sits within 1.05:1 of `--line`. The bar's only job is showing which years are intercalary. |
+| A year's work repeated every month | `perihelionAphelionCorrected` costs 28 ms and ran once per month view rather than once per year. |
+
+End-to-end, what a subscriber actually receives was checked against what the
+app displays: **14,608 sun instants across both shipped feeds agree to within
+1 second**, with zero label mismatches in either language and 800 all-day dates
+correct. `scripts/verify_astronomy.py` reports its original figures unchanged.
+
+---
+
 ## Deployment trap found while doing 1.1 — fixed
 
 Every script in `index.html` loads as `solar.js?v=md5(bytes)[:8]`. Browsers
