@@ -89,7 +89,7 @@ differ by ~20 minutes), so feeds are per city, grouped by country in the picker.
 
 ---
 
-## Phase 0 — Foundations
+## Phase 0 — Foundations — DONE
 
 **Blocks everything else.** Both items exist because the same fact is currently
 stored in two places, and every later phase multiplies that cost.
@@ -124,7 +124,7 @@ can never disagree about wording.
 
 ---
 
-## Phase 1 — Astronomy core
+## Phase 1 — Astronomy core — DONE
 
 App-only. No feed regeneration, so cheap to iterate.
 
@@ -241,7 +241,7 @@ on data already loaded.
 
 ---
 
-## Phase 2 — Feeds: per city, per language
+## Phase 2 — Feeds: per city, per language — DONE
 
 ### 2.1 Prune the spans
 
@@ -273,7 +273,7 @@ registry and drive the app immediately; they enter the picker when hosting moves
 
 ---
 
-## Phase 3 — Cities
+## Phase 3 — Cities — DONE
 
 Free in the app (client-side, ~2 KB); the cost was entirely in static feeds.
 
@@ -287,7 +287,7 @@ DST comes from real IANA rules, never a fixed offset — Egypt reinstated DST in
 
 ---
 
-## Phase 4 — English
+## Phase 4 — English — DONE
 
 Much smaller than originally scoped, because Phase 0.2 means the table already
 exists and every Phase 1 string was authored bilingually.
@@ -301,7 +301,7 @@ Full translation, not partial — half-translated apps read as broken.
 
 ---
 
-## Phase 5 — VPS migration (supervised)
+## Phase 5 — VPS migration (supervised) — READY, waiting on one root paste
 
 Deliberately last, and **not** an unattended job: DNS and TLS mistakes take the
 live URL down and every subscriber's feed with it.
@@ -329,7 +329,24 @@ service on a machine holding health and loan records:
 - Personal OS stays bound to the tailnet interface (100.126.157.23), unchanged
 - firewall opens 443 and 80 (ACME) and nothing else; everything else stays
   tailnet-only
-- certbot with the Hostinger DNS hook is already installed — reuse it
+- certbot is installed but has ONLY the standalone and webroot plugins — no
+  DNS plugin. `vps/hostinger_dns.py` supplies DNS-01 through the Hostinger
+  API instead, which is what allows the certificate to be issued *before*
+  the domain points at the box, and therefore a zero-downtime cutover.
+  Round-tripped against the live zone: add, verify, remove, zone unchanged.
+
+---
+
+## Phase 5 status
+
+Everything that does not need root is done and tested on the box:
+the app is at `/home/personal/nasi-calendar`, the feed generator runs on
+`127.0.0.1:8971` with no dependencies beyond the standard library, and it
+serves `nasi-cairo-full-5y.ics` byte-identically to the committed static
+file with CRLF intact.
+
+What remains is a single paste as root — see `vps/DEPLOY.md`. No standing
+privilege is granted and sudo keeps its password.
 
 ---
 
