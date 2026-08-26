@@ -351,7 +351,7 @@ through to the live site, so nothing published before the move is broken.
 | Cities with links | **33**, up from 2 — feeds are generated per request, ~190 ms cold, 3 ms cached |
 | On the wire | gzip: 2,529,771 → **139,121 bytes**, 18.2× smaller per subscriber refresh |
 | Isolation | nginx binds the calendar to `186.240.155.88:443`; Personal OS keeps `100.126.157.23:443`. Never a shared listen address |
-| Rollback | one DNS record — Pages stays configured, `docs/data/*.ics` stays committed |
+| Rollback | one DNS record — Pages stays configured. The static `.ics` files were deleted 26 Aug 2026; they covered only 2 of 33 cities, so they were never much of a fallback |
 
 Four things the plan did not anticipate, all found by verifying rather than
 assuming, all fixed in `vps/root-install.sh`:

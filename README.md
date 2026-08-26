@@ -99,8 +99,12 @@ which is exactly what the move to the VPS did, without a single subscriber
 having to do anything. A `github.io` path is only as durable as that
 repository's name.
 
-Rollback is one DNS record: putting the CNAME back restores the Pages site,
-which is why `docs/data/*.ics` is still committed.
+Rollback is one DNS record: putting the CNAME back restores the Pages site.
+The feeds do not come back with it — the static `.ics` files were deleted on
+26 Aug 2026, and they only ever covered Cairo and Barcelona, so as a fallback
+they already left 31 of the 33 cities returning 404. The real protection is
+that the generator is stdlib-only Python with no dependencies: it runs
+anywhere, from this repo, in about 190 ms a city.
 
 The old `borhom44.github.io/nasi-calendar/*` paths still 301 to the new domain,
 so nothing published before the move is broken.
@@ -161,9 +165,9 @@ documented, intended placement, not an extraction error.
   browser copy `docs/cities-data.js` is generated from it.
 - `data/strings.json` — every user-visible string with `ar` and `en` side by
   side. `docs/strings-data.js` is generated from it.
-- `docs/data/nasi-{cairo,barcelona}-full-5y{,-en}.ics` — static feeds kept only
-  as the rollback path; the live site generates every city's feed per request
-  from `vps/feed_server.py`.
+- Feeds are not stored anywhere. `vps/feed_server.py` generates each one when
+  a calendar asks for it — ~190 ms cold, ~3 ms cached — from `data/*.json` via
+  `scripts/generate_ics_full.py`. Nothing on disk can go stale.
 - `docs/index.html` — the web app: a month grid
   (each Gregorian day shows its Nasi' date underneath, the convention the source
   table uses), a two-way converter, a sky panel and a cycles view.

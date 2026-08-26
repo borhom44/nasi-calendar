@@ -176,9 +176,10 @@ claiming a subdomain of yours on GitHub Pages.
 
 - Flip `feed: true` for the remaining 31 cities in `data/cities.json`; they need
   no files, only the flag, and the subscribe picker will offer them.
-- `docs/data/*.ics` stay for now. Deleting them is right eventually — the
-  server generates feeds and the static copies only go stale — but they are
-  the rollback: putting the CNAME back restores a GitHub Pages site that still
-  has working feeds. Delete them once the VPS has run unattended for a while.
+- `docs/data/*.ics` were deleted on 26 Aug 2026 (9.3 MB). They had been kept
+  as the rollback, but covered only Cairo and Barcelona out of 33 cities, so a
+  fallback to Pages would have 404'd for nearly everyone anyway. **The site
+  now depends on `nasi-feeds.service` being up.** If the box is lost, the
+  generator is stdlib-only Python and runs anywhere from this repo.
 - nginx access logs finally answer how many people subscribe, which GitHub
   Pages never could.
