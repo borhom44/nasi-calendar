@@ -87,19 +87,49 @@ check_cert() {
 }
 
 # --------------------------------------------------------------- run + repair
-check_cert
-if ! check_site || ! check_feed; then
-  log "first pass failed: ${problems[*]}; restarting nasi-feeds"
-  systemctl restart nasi-feeds
-  sleep 8
+#
+# nginx on this box is SHARED with Personal OS, which binds its own vhost to
+# the Tailscale address. So the repair escalates by blame, not by desperation:
+#
+#   - nasi-feeds is mine alone, so restarting it is always safe.
+#   - The site itself is served by nginx DIRECTLY (try_files, no proxy), while
+#     a feed goes through the proxy to the generator. A 200 on the site is
+#     therefore proof that nginx is healthy. If only the feed is failing, the
+#     fault is downstream and reloading nginx would disturb a service shared
+#     with someone else's work to fix something it is not causing.
+#
+# Personal OS also runs an autonomous loop overnight that git-commits on the
+# server; that is the process most likely to be caught out by a needless
+# restart of a shared service.
+
+run_checks() {
   problems=()
-  check_cert
-  if ! check_site || ! check_feed; then
-    log "still failing after restarting nasi-feeds; reloading nginx"
+  site_ok=1; check_site || site_ok=0
+  feed_ok=1; check_feed || feed_ok=0
+}
+
+check_cert
+run_checks
+
+if [ "$site_ok" -eq 0 ] || [ "$feed_ok" -eq 0 ]; then
+  log "first pass failed: ${problems[*]}"
+
+  if [ "$feed_ok" -eq 0 ]; then
+    log "restarting nasi-feeds (my service, always safe to bounce)"
+    systemctl restart nasi-feeds
+    sleep 8
+    check_cert
+    run_checks
+  fi
+
+  if [ "$site_ok" -eq 0 ]; then
+    log "the static site is down too, so nginx is implicated; reloading nginx"
     systemctl reload nginx 2>/dev/null || systemctl restart nginx
     sleep 5
-    problems=()
-    check_cert; check_site; check_feed
+    check_cert
+    run_checks
+  elif [ "$feed_ok" -eq 0 ]; then
+    log "nginx is serving the site fine, so the fault is downstream of it -- leaving shared nginx alone"
   fi
 fi
 

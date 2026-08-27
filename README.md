@@ -119,9 +119,16 @@ looks healthy. `Restart=on-failure` only catches the process exiting; a wedged
 worker, a dead nginx, or a certificate that quietly failed to renew all leave
 the unit `active` and every feed unreachable.
 
-It **repairs before it reports**: a failing feed gets the service restarted,
-then nginx reloaded, and only alerts if that did not fix it. Measured recovery
-from a stopped service: about 9 seconds.
+It **repairs before it reports**, and escalates by blame rather than by
+desperation. `nasi-feeds` is ours alone, so bouncing it is always safe. nginx
+is **shared with Personal OS** on the same box, so it is only touched when it
+is actually implicated: the site is served by nginx directly while a feed goes
+through the proxy, so a 200 on the site proves nginx is healthy and the fault
+is downstream. Reloading it then would disturb someone else's service to fix
+something it is not causing.
+
+Measured, with the feed server stopped outright: detected the 502, restarted
+`nasi-feeds`, recovered — about 9 seconds, and zero nginx reloads.
 
 `https://nasi.ibrahimabdelrahim.cloud/healthz` returns `ok` in three bytes, for
 an external uptime monitor that should not pull 2.5 MB of calendar every few
