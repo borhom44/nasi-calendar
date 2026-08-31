@@ -1,4 +1,4 @@
-# Nasi' Calendar (التقويم النسيء)
+# Nasi' Calendar (تقويم النسيء)
 
 > ## Source & attribution
 >

@@ -78,7 +78,7 @@
       "en": "City"
     },
     "feed.calendarName": {
-      "ar": "التقويم النسيء — {city}",
+      "ar": "تقويم النسيء — {city}",
       "en": "Nasi’ Calendar — {city}"
     },
     "feed.eventInCity": {
@@ -378,7 +378,7 @@
       "en": "Timezone"
     },
     "ui.appTitle": {
-      "ar": "التقويم النسيء",
+      "ar": "تقويم النسيء",
       "en": "Nasi’ Calendar"
     },
     "ui.tagline": {
@@ -450,7 +450,7 @@
       "en": "This lunation"
     },
     "ui.whatIsNasi": {
-      "ar": "ما هو التقويم النسيء؟",
+      "ar": "ما هو تقويم النسيء؟",
       "en": "What is the Nasi’ calendar?"
     },
     "ui.subscribeTitle": {

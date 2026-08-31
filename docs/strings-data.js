@@ -23,7 +23,7 @@ const STRINGS = {
   "unit.second": {"ar": "ث", "en": "s"},
   "unit.km": {"ar": "كم", "en": "km"},
   "city.label": {"ar": "المدينة", "en": "City"},
-  "feed.calendarName": {"ar": "التقويم النسيء — {city}", "en": "Nasi’ Calendar — {city}"},
+  "feed.calendarName": {"ar": "تقويم النسيء — {city}", "en": "Nasi’ Calendar — {city}"},
   "feed.eventInCity": {"ar": "{event} في {city}", "en": "{event} in {city}"},
   "tab.cycles": {"ar": "الدورات", "en": "Cycles"},
   "cycles.metonic": {"ar": "الدورة الميتونية", "en": "The Metonic cycle"},
@@ -98,7 +98,7 @@ const STRINGS = {
   "city.badCoords": {"ar": "خط العرض بين −90 و 90، وخط الطول بين −180 و 180.", "en": "Latitude must be between −90 and 90, longitude between −180 and 180."},
   "city.customNote": {"ar": "اختر المنطقة الزمنية الصحيحة للموقع، وإلا ظهرت الأوقات بساعات جهازك لا بساعات المكان. لا يوجد رابط اشتراك للمواقع المخصصة.", "en": "Pick the location’s own timezone, or the times will read in your device’s hours rather than the place’s. Custom locations have no subscription link."},
   "city.tz": {"ar": "المنطقة الزمنية", "en": "Timezone"},
-  "ui.appTitle": {"ar": "التقويم النسيء", "en": "Nasi’ Calendar"},
+  "ui.appTitle": {"ar": "تقويم النسيء", "en": "Nasi’ Calendar"},
   "ui.tagline": {"ar": "تقويم شمسي‑قمري كان يُستخدم قبل الإسلام، يُدرج فيه شهر «النسيء» كل نحو ثلاث سنوات لمواءمة السنة القمرية مع الفصول.", "en": "A lunisolar calendar used before Islam, which inserts a “نسيء” month roughly every three years to hold the lunar year against the seasons."},
   "tab.calendar": {"ar": "التقويم", "en": "Calendar"},
   "tab.convert": {"ar": "التحويل", "en": "Convert"},
@@ -116,7 +116,7 @@ const STRINGS = {
   "ui.calNasi": {"ar": "نسيء", "en": "Nasi’"},
   "ui.skyTitle": {"ar": "القمر والشمس", "en": "Moon and Sun"},
   "ui.moonEventsTitle": {"ar": "أحداث الدورة القمرية الحالية", "en": "This lunation"},
-  "ui.whatIsNasi": {"ar": "ما هو التقويم النسيء؟", "en": "What is the Nasi’ calendar?"},
+  "ui.whatIsNasi": {"ar": "ما هو تقويم النسيء؟", "en": "What is the Nasi’ calendar?"},
   "ui.subscribeTitle": {"ar": "أضِف التقويم إلى تقويمك", "en": "Add this to your calendar"},
   "ui.faqTitle": {"ar": "أسئلة شائعة", "en": "Questions"},
   "ui.creditsTitle": {"ar": "المصدر والاعتماد", "en": "Source and credit"},
@@ -211,6 +211,8 @@ const STRINGS = {
   "grid.computedHidden": {"ar": "تواريخ النسيء لهذا الشهر خارج جدول الكتاب، وهي مخفيّة حسب إعدادك.", "en": "The Nasi’ dates this month fall outside the book’s table and are hidden, by your setting."},
   "conv.computedHidden": {"ar": "· (خارج جدول الكتاب — مخفي حسب إعدادك)", "en": "· (outside the book’s table — hidden by your setting)"},
   "sub.computerOnly": {"ar": "أضِفه من كمبيوتر — تطبيق Google Calendar على الهاتف لا يستطيع إضافة اشتراك بالرابط. أضِفه مرة واحدة من الكمبيوتر وسيظهر على هاتفك تلقائياً بعد المزامنة.", "en": "Add it from a computer — the Google Calendar phone app cannot add a subscription by URL. Do it once on a computer and it appears on your phone by itself once it syncs."},
+  "feed.calendarDesc": {"ar": "تقويم النسيء: إدخال واحد لكل يوم يحمل التاريخ وطور القمر، وبداخله أوقات الشمس. التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA).", "en": "The Nasi’ calendar: one entry per day carrying the date and the moon’s phase, with the sun times inside it. Dates come from the «Bara’at al-Nasi’» table; the astronomy is computed independently (Meeus/NOAA)."},
+  "feed.moonIllum": {"ar": "إضاءة القمر: {pct}٪", "en": "Moon illumination: {pct}%"},
 };
 
 /* Translate. Returns the key itself on a miss and warns rather than

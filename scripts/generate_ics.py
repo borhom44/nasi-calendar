@@ -39,7 +39,7 @@ def build_ics(days, start, end):
         "VERSION:2.0",
         "PRODID:-//nasi-calendar//Bara'at al-Nasi' overlay//AR",
         "CALSCALE:GREGORIAN",
-        "X-WR-CALNAME:التقويم النسيء (Nasi' Calendar)",
+        "X-WR-CALNAME:تقويم النسيء (Nasi' Calendar)",
         "X-WR-CALDESC:Daily Nasi'-calendar date overlay, reconstructed from the "
         "2000-2100 table in Bara'at al-Nasi' (Wisam al-Din Ishaq).",
     ]

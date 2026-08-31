@@ -22,8 +22,8 @@ DONE is deployed. He has more items coming; this file stays the running list.
 | Health check + external monitor | **DONE** — on-box repair, GitHub Actions notices |
 | Feeds too busy: 9,266 events | **DONE** — one entry per day, 1,826 |
 | English feed was substantially Arabic | **DONE** — found while doing the above |
-| Arabic title should drop the article | **PENDING — he asked for it LATER** |
-| A private rich feed for him | **PENDING — blocked on one decision** |
+| Arabic title should drop the article | **DONE** — idafa, and التقويم الهجري left alone |
+| A private rich feed for him | **DONE** — secret path, all four sun events |
 
 ---
 
@@ -176,11 +176,25 @@ detail lives in the git log; the entries worth remembering are:
 
 ## Open now
 
-### 1. Arabic title — drop the definite article (he said do it LATER)
+### 1. Arabic title — DONE 31 Aug 2026
 
-`ui.appTitle` (ar) is **التقويم النسيء**. It should be **تقويم النسيء** —
-*taqwīm al-nasīʾ*, not *al-taqwīm al-nasīʾ*. Only the second word takes the
-article. `feed.calendarName` (ar) has the same shape: `التقويم النسيء — {city}`.
+Now **تقويم النسيء** — *taqwīm al-nasīʾ*, not *al-taqwīm al-nasīʾ*. Only the
+second word takes the article, because النسيء is a NOUN: the name has to be an
+idafa, not noun+adjective.
+
+That distinction is exactly why **التقويم الهجري stays as it is** — هجري *is*
+an adjective, so the doubled article is correct there. Two occurrences of it
+survived the change untouched, checked by assertion rather than by eye.
+
+Ten occurrences across five files: `data/strings.json` (3 — `ui.appTitle`,
+`feed.calendarName`, `ui.whatIsNasi`), `docs/index.html` (4 — meta description,
+`<title>`, `<h1>`, `<h2>`), `docs/manifest.json` (the PWA name; `short_name`
+is `النسيء` and was already right), `README.md`, and `scripts/generate_ics.py`
+(`X-WR-CALNAME` in the plain date-only tool).
+
+The feed's calendar name changed with it, and it took effect **without a
+restart** — which is the string-reload fix from earlier proving itself. Before
+that fix this deploy would have silently done nothing.
 
 Both live in `data/strings.json`. The Arabic also sits as fallback text inside
 `docs/index.html` in 4 places, and `build_web.py` does NOT rewrite those — miss
