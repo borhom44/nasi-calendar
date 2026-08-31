@@ -828,6 +828,14 @@
     "sub.computerOnly": {
       "ar": "أضِفه من كمبيوتر — تطبيق Google Calendar على الهاتف لا يستطيع إضافة اشتراك بالرابط. أضِفه مرة واحدة من الكمبيوتر وسيظهر على هاتفك تلقائياً بعد المزامنة.",
       "en": "Add it from a computer — the Google Calendar phone app cannot add a subscription by URL. Do it once on a computer and it appears on your phone by itself once it syncs."
+    },
+    "feed.calendarDesc": {
+      "ar": "تقويم النسيء: إدخال واحد لكل يوم يحمل التاريخ وطور القمر، وبداخله أوقات الشمس. التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA).",
+      "en": "The Nasi’ calendar: one entry per day carrying the date and the moon’s phase, with the sun times inside it. Dates come from the «Bara’at al-Nasi’» table; the astronomy is computed independently (Meeus/NOAA)."
+    },
+    "feed.moonIllum": {
+      "ar": "إضاءة القمر: {pct}٪",
+      "en": "Moon illumination: {pct}%"
     }
   }
 }

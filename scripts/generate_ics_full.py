@@ -1,12 +1,16 @@
-"""Generate an enriched .ics feed: Nasi' dates + sun times + moon events.
+"""Generate the .ics feed: one all-day entry per day, and by default nothing else.
 
-Three kinds of entry go into one file:
+  ONE ALL-DAY event per day -- the title is the Nasi' date with the moon's
+  phase as an icon, and the description carries that day's four sun events for
+  the chosen city plus the moon's illumination.
 
-  1. One ALL-DAY event per day  -- title is the Nasi' date; the description
-     carries that day's four sun events for the chosen city plus the
-     moon's illumination.
-  2. TIMED events for each new moon and full moon, at their exact instants.
-  3. TIMED events for each real lunar eclipse from NASA's catalog.
+Three other kinds of entry can be switched on (--sun-events, --moon-events,
+--eclipses) and are OFF everywhere that ships. They used to be on: four timed
+sun events a day, plus moon instants and eclipses, came to 9,266 events over
+five years, which leaves a subscriber's calendar permanently full and buries
+the date itself -- the one thing the feed exists to deliver. Removing them
+loses no information: the sun times are in the daily entry's description,
+which is what a reader sees on the single tap they were going to make anyway.
 
 All times are written as UTC (the trailing Z form). This is deliberate: a
 calendar client renders UTC in the viewer's own timezone, so the feed stays
@@ -44,6 +48,20 @@ ECLIPSE_JSON = str(DATA / "lunar_eclipses.json")
 # deliberately -- if they ever drift apart, the calendar and the app would
 # disagree about what phase the same day is in.
 SYNODIC_MEAN = 29.530589
+
+
+def nasi_month_label(arabic_name, lang):
+    """The same mapping the app's nasiMonthLabel() does. nasi_days.json stores
+    month names in Arabic only, so any other language has to find the name's
+    index in the Arabic list and take the same position from its own."""
+    if lang == "ar":
+        return arabic_name
+    names_ar = tr("month.nasi", "ar").split(",")
+    try:
+        i = names_ar.index(arabic_name)
+    except ValueError:
+        return arabic_name          # unknown month: show it rather than lose it
+    return tr("month.nasi", lang).split(",")[i]
 
 
 def moon_emoji(illum, age):
@@ -123,16 +141,27 @@ def fold(line):
     return "\r\n ".join(out)
 
 
-def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang="ar"):
+def build(days, moon, eclipses, city_key, start, end, lang="ar",
+          with_sun_events=False, with_moon_events=False, with_eclipses=False):
     # lang selects the display language for every label in the feed. It is a
     # parameter rather than a constant because Phase 2 generates one feed per
     # city per language from this same code path -- no wording is hardcoded.
+    #
+    # ONE ENTRY PER DAY is the default, and the default is what the live feeds
+    # use. Four timed sun events a day plus moon and eclipse entries came to
+    # 9,266 events over five years and made the subscriber's calendar unusable:
+    # every day permanently full. The sun times were never lost by removing
+    # them -- they have always also been in this entry's DESCRIPTION, which is
+    # what the reader sees on the single tap they were going to make anyway.
+    #
+    # The other three are kept behind flags rather than deleted: the code is
+    # correct and someone may want a research feed. Nothing generates them now.
     city = CITIES[city_key]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//nasi-calendar//Nasi + sun + moon//AR",
+        f"PRODID:-//nasi-calendar//Nasi'//{lang.upper()}",
         "CALSCALE:GREGORIAN",
         # Google ignores both of these and refetches on its own schedule (8-24h,
         # sometimes longer, with no way for a publisher to trigger it). Apple
@@ -141,9 +170,9 @@ def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang
         "REFRESH-INTERVAL;VALUE=DURATION:PT12H",
         "X-PUBLISHED-TTL:PT12H",
         fold("X-WR-CALNAME:" + escape_ics(fmt("feed.calendarName", lang, city=city_label(city, lang)))),
-        fold("X-WR-CALDESC:تقويم النسيء مع أوقات الشمس وأحداث القمر. "
-             "التواريخ من جدول «براءة النسيء»؛ الحسابات الفلكية مستقلة (Meeus/NOAA) "
-             "وأحداث الخسوف من كتالوج ناسا."),
+        # was hardcoded Arabic, so every English subscriber got an Arabic
+        # calendar description in a feed whose labels were otherwise English
+        fold("X-WR-CALDESC:" + escape_ics(tr("feed.calendarDesc", lang))),
     ]
 
     n_day = n_moon = n_ecl = n_sun = 0
@@ -167,15 +196,21 @@ def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang
             + f"  ({city_label(city, lang)})",
         ]
         if illum is not None:
-            desc_parts.append(f"إضاءة القمر: {illum}٪")
+            desc_parts.append(fmt("feed.moonIllum", lang, pct=illum))
 
         # The headline carries only the date and the moon's phase. The four sun
         # events are emitted below as TIMED entries so they land in the day grid
         # at the hour they actually happen -- reading "الغروب" in the 19:00 row
         # beats parsing a time out of an all-day banner. Full times stay in this
         # description too, so one tap still shows all four together.
+        # The month name in nasi_days.json is Arabic, so an English feed has
+        # to translate it -- and the era marker was "هـ" (AH), which belongs to
+        # the official Hijri calendar the app deliberately keeps as a SEPARATE
+        # row. Labelling a Nasi' date with it conflated the two calendars this
+        # whole project exists to distinguish.
         icon = moon_emoji(illum, age) + " " if illum is not None else ""
-        summary = f"{icon}{d['nd']} {d['nm']} {d['ny']} هـ"
+        summary = (f"{icon}{d['nd']} {nasi_month_label(d['nm'], lang)} "
+                   f"{d['ny']} {tr('era.nasi', lang)}")
 
         lines += [
             "BEGIN:VEVENT",
@@ -217,13 +252,13 @@ def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang
                 ]
                 n_sun += 1
 
-    # --- 2. exact new-moon and full-moon instants ---
+    # --- 2. exact new-moon and full-moon instants (off by default) ---
     start_jd = greg_to_jd(*[int(x) for x in start.split("-")])
     end_jd = greg_to_jd(*[int(x) for x in end.split("-")])
     k_lo = int(math.floor((start_jd - 2451550.09766) / 29.530588861)) - 1
     k_hi = int(math.ceil((end_jd - 2451550.09766) / 29.530588861)) + 1
 
-    for k in range(k_lo, k_hi + 1):
+    for k in (range(k_lo, k_hi + 1) if with_moon_events else ()):
         for is_full, label in ((False, "🌑 بداية دورة قمرية جديدة (محاق)"),
                                (True, "🌕 اكتمال القمر (بدر)")):
             approx_y = 2000 + int(k / 12.3685)
@@ -243,8 +278,8 @@ def build(days, moon, eclipses, city_key, start, end, with_sun_events=True, lang
             ]
             n_moon += 1
 
-    # --- 3. real lunar eclipses from NASA's catalog ---
-    for ev in eclipses:
+    # --- 3. real lunar eclipses from NASA's catalog (off by default) ---
+    for ev in (eclipses if with_eclipses else ()):
         dt = datetime.strptime(ev["t"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         if not (start <= dt.date().isoformat() <= end):
             continue
@@ -276,8 +311,23 @@ def main():
     # Four extra events a day is ~4x the file. Worth it over five years; over a
     # century it would be a ~55MB feed that every subscriber re-fetches daily,
     # so the 100-year file deliberately ships without them.
-    ap.add_argument("--no-sun-events", action="store_true",
-                    help="omit the four timed daily sun events (used for the 100-year feed)")
+    # These were on by default and are now opt-in. A feed with four timed sun
+    # events a day leaves the reader permanently booked; the times are in the
+    # daily entry's description either way, which is where they are actually
+    # read. Kept as flags because the code is correct and a research feed may
+    # want them -- nothing that ships turns them on.
+    ap.add_argument("--sun-events", action="store_true",
+                    help="also emit the four daily sun events as timed entries")
+    ap.add_argument("--moon-events", action="store_true",
+                    help="also emit exact new-moon and full-moon instants")
+    ap.add_argument("--eclipses", action="store_true",
+                    help="also emit lunar eclipses from NASA's catalogue")
+    ap.add_argument("--everything", action="store_true",
+                    help="shorthand for --sun-events --moon-events --eclipses")
+    # build() has always taken lang; the CLI never exposed it, so the only way
+    # to produce an English feed was through build_feeds.py or the server.
+    ap.add_argument("--lang", default="ar", choices=("ar", "en"),
+                    help="feed language (default: ar)")
     a = ap.parse_args()
 
     today = date.today()
@@ -289,8 +339,12 @@ def main():
     moon = json.load(open(MOON_JSON, encoding="utf-8"))
     eclipses = json.load(open(ECLIPSE_JSON, encoding="utf-8"))
 
-    ics, nd, nm, ne, ns = build(days, moon, eclipses, a.city, start, end,
-                                with_sun_events=not a.no_sun_events)
+    ics, nd, nm, ne, ns = build(
+        days, moon, eclipses, a.city, start, end,
+        with_sun_events=a.sun_events or a.everything,
+        with_moon_events=a.moon_events or a.everything,
+        with_eclipses=a.eclipses or a.everything,
+        lang=a.lang)
     with open(a.out, "w", encoding="utf-8", newline="") as f:
         f.write(ics)
     total = nd + nm + ne + ns

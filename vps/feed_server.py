@@ -20,7 +20,17 @@ these two forms are frozen. Anything else 404s rather than guessing.
 
 CACHING. A feed takes a few seconds to build and subscribers refetch daily, so
 each (city, lang) is cached in memory and rebuilt only when a source file
-changes -- checked by mtime, so editing strings.json is enough to invalidate.
+changes -- checked by mtime.
+
+Invalidating the cache is NOT by itself enough to pick up a data change.
+strings.py fills its table in a module global at IMPORT time, so a rebuild
+would use the wording the process started with and the deploy would look like
+it silently did nothing. The reload below is what makes "edit strings.json and
+it takes effect" actually true.
+
+Editing a .py file still requires `systemctl restart nasi-feeds`: the module
+object is already in memory and nothing here re-imports code. Hot-reloading
+code is not worth the failure modes; the restart is a second.
 """
 import argparse
 import re
@@ -36,6 +46,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import json  # noqa: E402
 from cities import CITIES  # noqa: E402
+import strings  # noqa: E402
 from strings import LANGS  # noqa: E402
 import generate_ics_full as gen  # noqa: E402
 
@@ -80,6 +91,11 @@ class FeedCache:
                 self._feeds.clear()
                 self._data = None
                 self._stamp = stamp
+                # _load_inputs() below re-reads the JSON day/moon/eclipse
+                # files, but the string table is a module global filled at
+                # import. Without this, a wording change rebuilds into the
+                # identical old bytes.
+                strings.STRINGS = strings._load()
             key = (city_key, lang)
             if key not in self._feeds:
                 if self._data is None:

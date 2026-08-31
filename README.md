@@ -59,27 +59,33 @@ returns 404 rather than a guess.
 
 One feed per city per language: Arabic keeps the historic unsuffixed name
 because people are already subscribed to it, English takes a `-en` suffix.
-Each covers 2026–2030 with 9,266 events in about 2.3 MB — 1,826 daily Nasi'
-dates, four timed sun events a day, and the new/full moon instants and lunar
-eclipses.
+Each covers 2026–2030 as **one all-day entry per day** — 1,826 of them. The
+title is the Nasi' date with the moon's phase as an icon; that day's four sun
+times and the moon's illumination are in the description, one tap away.
 
 The 1-year and 100-year spans were retired. Importing rather than subscribing
-is unusable at any span, and at four sun events a day the 100-year file came
-to ~55 MB re-fetched daily by every subscriber.
+is unusable at any span.
 
 Feeds are generated when your calendar asks for one, not stored — which is why
 all 33 cities have links rather than the two that fitted in a static repo, and
 why arbitrary coordinates work in the app. A cold city takes about 190 ms to
-compute and 3 ms thereafter, and the response is gzipped: 2.5 MB of calendar
-text goes over the wire as about 139 KB.
+compute and 3 ms thereafter, and the response is gzipped.
 
-Every feed carries four timed events a day — أول الضوء / الشروق / الغروب / الظلام التام, i.e. astronomical twilight to astronomical twilight —
-at their exact instants, so they land in the day grid rather than being buried in
-an all-day banner's description. That is 4× the events, which is affordable over
-five years and not over a century: the 100-year feed is generated with
-`--no-sun-events` deliberately, since with them it would be a ~55 MB file that
-every subscriber re-fetches daily. It still carries the daily Nasi' date, the
-moon phase icon, the new/full moon instants and the NASA eclipses.
+### One entry a day, not five
+
+The feed used to emit the four sun events as separate timed entries, plus the
+new/full moon instants and the lunar eclipses: 9,266 events over five years.
+It was too much. A subscriber's calendar was full every single day, and the
+Nasi' date — the one thing the feed exists to deliver — was buried among four
+other things competing with it.
+
+Nothing was lost by removing them. The four sun times have always ALSO been in
+the daily entry's description, which is what a reader sees on the tap they were
+going to make anyway. What changed is that the day now reads as one line
+instead of five.
+
+The code for all three still exists behind `--sun-events`, `--moon-events` and
+`--eclipses` (or `--everything`). Nothing that ships turns them on.
 
 **Importing is no longer viable for any span** — subscribe by URL.
 
