@@ -1,0 +1,132 @@
+# An EXTERNAL monitor for the live calendar.
+#
+# nasi-health.timer already runs on the VPS every 5 minutes and repairs what it
+# can. What it cannot do, by definition, is notice that the whole box is gone --
+# a check running on the machine it is checking reports nothing when the machine
+# is off. This runs on GitHub's infrastructure instead, so it survives the VPS.
+#
+# When this job fails, GitHub emails the repository owner and opens an issue.
+# The issue is what makes an outage impossible to scroll past, and it closes
+# itself when the site comes back.
+#
+# Notes on the schedule: GitHub's cron is best-effort and can be minutes late
+# under load, so treat "every 10 minutes" as approximate -- it is a safety net,
+# not a stopwatch. GitHub also disables scheduled workflows after 60 days with
+# no repository activity, and emails a warning first; if that happens, re-enable
+# it from the Actions tab.
+
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:        # so you can run it by hand from the Actions tab
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe the live site
+        id: probe
+        run: |
+          set -uo pipefail
+          BASE=https://nasi.ibrahimabdelrahim.cloud
+          FEED="$BASE/data/nasi-cairo-full-5y.ics"
+
+          fail=""
+          for attempt in 1 2 3; do
+            fail=""
+
+            # 1. liveness -- three bytes, this is the cheap one
+            code=$(curl -sS -m 20 -o /tmp/h -w '%{http_code}' "$BASE/healthz" || echo 000)
+            # capped: a wrong response can be an entire HTML error page, and
+            # this string goes into $GITHUB_OUTPUT, which is key=value parsed
+            body=$(tr -d '[:space:]' < /tmp/h 2>/dev/null | head -c 40)
+            [ "$code" = "200" ] || fail="$fail healthz=HTTP$code"
+            [ "$body" = "ok" ]  || fail="$fail healthz-body='$body'"
+
+            # 2. a real feed. /healthz only proves the process is listening; a
+            #    generator that answers 200 with the wrong body is exactly the
+            #    failure that would otherwise go unnoticed, because subscribers
+            #    simply stop getting updates and nothing says so.
+            fcode=$(curl -sS -m 90 -o /tmp/f -w '%{http_code}' "$FEED" || echo 000)
+            [ "$fcode" = "200" ] || fail="$fail feed=HTTP$fcode"
+            head=$(head -c 15 /tmp/f 2>/dev/null)
+            [ "$head" = "BEGIN:VCALENDAR" ] || fail="$fail feed-not-icalendar"
+            size=$(wc -c < /tmp/f 2>/dev/null || echo 0)
+            [ "$size" -ge 1000000 ] || fail="$fail feed-size=${size}B"
+
+            # 3. certificate. certbot renews at 30 days left, so under 10 means
+            #    renewal has been failing quietly for weeks.
+            end=$(echo | openssl s_client -connect nasi.ibrahimabdelrahim.cloud:443 \
+                    -servername nasi.ibrahimabdelrahim.cloud 2>/dev/null \
+                  | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+            if [ -n "$end" ]; then
+              left=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+              echo "certificate: $left days left"
+              [ "$left" -ge 10 ] || fail="$fail cert-expires-in-${left}d"
+            else
+              fail="$fail cert-unreadable"
+            fi
+
+            if [ -z "$fail" ]; then
+              echo "attempt $attempt: all checks passed"
+              break
+            fi
+            echo "attempt $attempt failed:$fail"
+            # a single blip on GitHub's side must not raise an issue
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+
+          if [ -n "$fail" ]; then
+            # trim the leading space, and cap the whole thing -- $GITHUB_OUTPUT
+            # is line-based and an unbounded value would break it
+            reason=$(echo "$fail" | sed 's/^ *//' | head -c 300)
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "status=down" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=up" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open an issue if it is down
+        if: steps.probe.outputs.status == 'down'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REASON: ${{ steps.probe.outputs.reason }}
+        run: |
+          set -euo pipefail
+          # one open issue per outage, not one per run
+          existing=$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "issue #$existing is already open; adding a note"
+            gh issue comment "$existing" --body "Still down at $(date -u +%FT%TZ) — \`$REASON\`"
+          else
+            gh label create uptime --color B60205 --description "Automated uptime check" 2>/dev/null || true
+            gh issue create --label uptime \
+              --title "Site is down: $(date -u +%F\ %H:%M) UTC" \
+              --body "$(printf 'The external uptime check could not reach the live calendar.\n\n**Failing:** `%s`\n\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$REASON" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+          fi
+          exit 1
+
+      - name: Close the issue if it recovered
+        if: steps.probe.outputs.status == 'up'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Back up at $(date -u +%FT%TZ). Closing."
+            gh issue close "$existing"
+            echo "closed #$existing"
+          else
+            echo "up, nothing to close"
+          fi

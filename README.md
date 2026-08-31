@@ -134,6 +134,22 @@ Measured, with the feed server stopped outright: detected the 502, restarted
 an external uptime monitor that should not pull 2.5 MB of calendar every few
 minutes.
 
+**The external monitor is `.github/workflows/uptime.yml`.** A check running on
+the machine it is checking reports nothing when that machine is off, so this
+one runs on GitHub's infrastructure instead — roughly every 10 minutes, hitting
+`/healthz`, a real feed (a 200 with the wrong body is the failure that would
+otherwise go unnoticed), and the certificate. It retries three times before
+declaring anything, so a blip on GitHub's side does not cry wolf.
+
+On failure it opens a labelled issue and the job fails, which is two
+notifications; the issue closes itself when the site comes back. It needs no
+account and no secret — `github.token` is enough.
+
+Two caveats: GitHub's cron is best-effort and can run late under load, so treat
+the interval as approximate. And GitHub disables scheduled workflows after 60
+days with no repository activity — it emails a warning first, and the Actions
+tab re-enables it.
+
 Alerting is opt-in. Create `/etc/nasi-health.conf` (root, mode 600):
 
 ```
