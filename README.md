@@ -87,6 +87,28 @@ instead of five.
 The code for all three still exists behind `--sun-events`, `--moon-events` and
 `--eclipses` (or `--everything`). Nothing that ships turns them on.
 
+### The private feed
+
+The rich form still exists, served under a secret path segment:
+
+```
+/data/<token>/nasi-<city>-full-5y[-en].ics
+```
+
+It carries the four timed sun events, the moon instants and the eclipses —
+everything the public feed drops. It sits under `/data/` on purpose, because
+nginx already proxies that whole prefix; a `/private/` path would have needed a
+root change to the vhost for no gain.
+
+The token is read from `~/.nasi-private-token` on the server and is
+deliberately **not in this repository, which is public**. With no such file the
+route does not exist at all. A wrong token returns the same 404 as a wrong
+city, compared with `hmac.compare_digest`, so the path never confirms itself.
+
+This is obscurity, not authentication: anyone holding the URL can read the
+feed, exactly as with the public ones. It is a calendar, not a secret. What it
+buys is that the rich feed is not reachable by guessing a city name.
+
 **Importing is no longer viable for any span** — subscribe by URL.
 
 Subscribing has no event-count ceiling and auto-updates; importing copies the

@@ -18,6 +18,10 @@ URL SHAPE -- the existing paths must keep working exactly:
 An .ics URL can never be redirected or recalled once someone subscribes, so
 these two forms are frozen. Anything else 404s rather than guessing.
 
+There is also a private form under a secret path segment, carrying the four
+timed sun events, the moon instants and the eclipses that the public feed
+deliberately drops. See PRIVATE_RE.
+
 CACHING. A feed takes a few seconds to build and subscribers refetch daily, so
 each (city, lang) is cached in memory and rebuilt only when a source file
 changes -- checked by mtime.
@@ -33,6 +37,7 @@ object is already in memory and nothing here re-imports code. Hot-reloading
 code is not worth the failure modes; the restart is a second.
 """
 import argparse
+import hmac
 import re
 import sys
 import threading
@@ -54,6 +59,32 @@ SPAN_YEARS = 5
 
 # Arabic is the unsuffixed historic name; every other language takes a suffix.
 FEED_RE = re.compile(r"^/data/nasi-([a-z0-9-]+)-full-5y(?:-([a-z]{2}))?\.ics$")
+
+# The private feed carries everything the public one dropped: the four timed
+# sun events, the new/full moon instants and the eclipses. It lives UNDER
+# /data/ deliberately -- nginx already proxies that whole prefix, so a
+# /private/ path would have required a root change to the vhost for no gain.
+#
+# The token is read from a file on the box and is deliberately NOT in this
+# repository, which is public. With no such file the private route does not
+# exist at all.
+PRIVATE_RE = re.compile(
+    r"^/data/([A-Za-z0-9_-]{20,})/nasi-([a-z0-9-]+)-full-5y(?:-([a-z]{2}))?\.ics$")
+TOKEN_FILE = Path.home() / ".nasi-private-token"
+
+
+def _private_token():
+    """The shared secret for the private feed, or None if it was never set up.
+
+    This is obscurity, not authentication: anyone holding the URL can read the
+    feed, exactly as with the public ones. It is a calendar, not a secret. What
+    it buys is that the rich feed is not reachable by guessing a city name.
+    """
+    try:
+        tok = TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return tok if len(tok) >= 20 else None
 
 # Any of these changing means every cached feed is stale.
 SOURCES = [REPO / "data" / "strings.json", REPO / "data" / "cities.json",
@@ -81,7 +112,7 @@ class FeedCache:
             json.loads(Path(gen.ECLIPSE_JSON).read_text(encoding="utf-8")),
         )
 
-    def get(self, city_key, lang):
+    def get(self, city_key, lang, rich=False):
         with self._lock:
             stamp = sources_stamp()
             if stamp != self._stamp:
@@ -96,13 +127,15 @@ class FeedCache:
                 # import. Without this, a wording change rebuilds into the
                 # identical old bytes.
                 strings.STRINGS = strings._load()
-            key = (city_key, lang)
+            key = (city_key, lang, rich)
             if key not in self._feeds:
                 if self._data is None:
                     self._load_inputs()
                 start = f"{date.today().year}-01-01"
                 end = f"{date.today().year + SPAN_YEARS - 1}-12-31"
-                ics, *_ = gen.build(*self._data, city_key, start, end, lang=lang)
+                ics, *_ = gen.build(*self._data, city_key, start, end, lang=lang,
+                                    with_sun_events=rich, with_moon_events=rich,
+                                    with_eclipses=rich)
                 self._feeds[key] = ics.encode("utf-8")
             return self._feeds[key]
 
@@ -130,15 +163,26 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/healthz":
             return self._send(200, b"ok\n")
 
+        rich = False
         m = FEED_RE.match(self.path)
-        if not m:
-            return self._send(404, b"not found\n")
-        city_key, lang = m.group(1), m.group(2) or "ar"
+        if m:
+            city_key, lang = m.group(1), m.group(2) or "ar"
+        else:
+            m = PRIVATE_RE.match(self.path)
+            if not m:
+                return self._send(404, b"not found\n")
+            want, expected = m.group(1), _private_token()
+            # compare_digest so a wrong token cannot be narrowed by timing,
+            # and the SAME 404 either way so the path never confirms itself
+            if expected is None or not hmac.compare_digest(want, expected):
+                return self._send(404, b"not found\n")
+            city_key, lang, rich = m.group(2), m.group(3) or "ar", True
+
         if city_key not in CITIES or lang not in LANGS:
             return self._send(404, b"not found\n")
 
         try:
-            body = CACHE.get(city_key, lang)
+            body = CACHE.get(city_key, lang, rich=rich)
         except Exception as exc:                      # noqa: BLE001
             self.log_error("build failed for %s/%s: %s", city_key, lang, exc)
             return self._send(500, b"generation failed\n")
