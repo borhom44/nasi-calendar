@@ -15,6 +15,15 @@ DONE is deployed. He has more items coming; this file stays the running list.
 | Extra settings rows — all five | **DONE** — he took all of them |
 | `gotoMonth` clamped the grid to 2000-2100 | **DONE** — pre-existing, found while testing |
 | Settings changes yanked the grid back to the picked month | **DONE** — `applyLanguage` did it too |
+| Language toggle beside the gear removed | **DONE** — redundant once language moved into Settings |
+| Languages named in their own language | **DONE** — `العربية` / `English` in both interfaces |
+| Moon stacked on the day number | **DONE** — `inset-inline-end`, 98px clear in both directions |
+| Weekday header never followed the language | **DONE** — pre-existing, found in his screenshot |
+| Health check + external monitor | **DONE** — on-box repair, GitHub Actions notices |
+| Feeds too busy: 9,266 events | **DONE** — one entry per day, 1,826 |
+| English feed was substantially Arabic | **DONE** — found while doing the above |
+| Arabic title should drop the article | **PENDING — he asked for it LATER** |
+| A private rich feed for him | **PENDING — blocked on one decision** |
 
 ---
 
@@ -149,6 +158,71 @@ on the URL gives the other language. Keeps the capability, drops the control.
 
 ---
 
-## Still to come
+## Third and fourth batches — built 26–31 Aug 2026
 
-He said he has more. Nothing gets built until he says the list is closed.
+Everything in the status table above marked DONE is deployed and verified. The
+detail lives in the git log; the entries worth remembering are:
+
+- The `[hidden]` attribute never worked anywhere, because `[hidden]{display:none}`
+  is a UA-stylesheet rule that any class setting `display` outranks.
+- `gotoMonth` clamped the grid to 2000–2100 while everything else advertised
+  1600–2200, so no computed date was reachable from the grid at all.
+- The English feed carried 1,826 Arabic summaries and 1,826 Arabic descriptions.
+- `feed_server.py` documented that editing `strings.json` was enough to pick up
+  a change. It was not: `strings.py` fills its table at import time, so a
+  deploy could look like it had silently done nothing.
+
+---
+
+## Open now
+
+### 1. Arabic title — drop the definite article (he said do it LATER)
+
+`ui.appTitle` (ar) is **التقويم النسيء**. It should be **تقويم النسيء** —
+*taqwīm al-nasīʾ*, not *al-taqwīm al-nasīʾ*. Only the second word takes the
+article. `feed.calendarName` (ar) has the same shape: `التقويم النسيء — {city}`.
+
+Both live in `data/strings.json`. The Arabic also sits as fallback text inside
+`docs/index.html` in 4 places, and `build_web.py` does NOT rewrite those — miss
+them and the markup disagrees with the string table.
+
+### 2. A private rich feed for him — blocked on one decision
+
+He wants to keep the rich version for himself, not linked publicly. That is
+what `--everything` already builds. Two things to settle:
+
+**Which sun events it carries.** He asked to drop fajr and isha as duplicating
+dawn and dusk — but there is no fajr or isha anywhere in the feed. See the
+section below.
+
+**How "private" it needs to be.** `FEED_RE` in `vps/feed_server.py` matches
+only `nasi-<city>-full-5y[-<lang>].ics`, so a private feed needs its own route.
+An unguessable path is obscurity, not access control: anyone with the URL has
+it, exactly like the public feeds. That is probably fine for this — it is a
+calendar, not a secret — but it should be a decision rather than an assumption.
+
+### What is actually around sunrise and sunset
+
+Four events, and **no fajr or isha**. `solar_times.py` says the fajr/isha
+convention table "was removed deliberately" — those labels existed before the
+review pass and were renamed, which is likely why he remembers them.
+
+| event | angle | meaning |
+|---|---|---|
+| `first_light` | −18.0° | astronomical twilight begins — the sky starts to lighten |
+| `sunrise` | −0.833° | upper limb on the horizon (refraction + solar radius) |
+| `sunset` | −0.833° | the same, descending |
+| `full_dark` | −18.0° | astronomical twilight ends |
+
+Cairo, showing how far the twilights sit from the sun itself:
+
+| date | first light | sunrise | sunset | full dark | gap each side |
+|---|---|---|---|---|---|
+| 20 Mar 2026 | 04:39 | 05:58 | 18:06 | 19:25 | 80 min |
+| 21 Jun 2026 | 04:17 | 05:54 | 19:59 | 21:35 | 97 min |
+| 31 Aug 2026 | 05:08 | 06:31 | 19:19 | 20:41 | 83 min |
+| 21 Dec 2026 | 05:21 | 06:46 | 16:59 | 18:24 | 86 min |
+
+So nothing is redundant — the pairs are 80–97 minutes apart and describe
+genuinely different moments. The real question is whether he wants two events a
+day or four.
