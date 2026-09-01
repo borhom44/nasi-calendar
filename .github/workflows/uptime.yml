@@ -361,6 +361,39 @@ jobs:
             headline="Inconclusive — only $voters vantage(s) reached a verdict ($recused recused for broken runner networking). Not raising an alarm on that."
           fi
 
+          # ---- the referee -------------------------------------------------
+          # `decide` runs on a FOURTH runner, minutes after the three probes
+          # finished. Before anything reaches his inbox, that machine looks
+          # for itself. It costs nothing and it adds both another independent
+          # vantage and another moment in time -- the two axes on which every
+          # false alarm today was wrong. It is the last thing standing between
+          # a prober-side fault and an email.
+          #
+          # It may only ever DOWNGRADE an alarm, never raise one: a single
+          # machine failing has never been evidence of an outage, which is the
+          # entire lesson of this file.
+          if [ "$state" = "down" ]; then
+            REF="https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics"
+            rcode=$(curl -sS -m 30 -o /tmp/ref -w '%{http_code}' "$REF" 2>/tmp/referr)
+            rrc=$?
+            ok=no
+            if [ "$rrc" -eq 0 ] && [ "$rcode" = "200" ]; then
+              head -c 15 /tmp/ref | grep -q 'BEGIN:VCALENDAR' &&
+                tail -c 200 /tmp/ref | grep -q 'END:VCALENDAR' && ok=yes
+            fi
+            if [ "$ok" = yes ]; then
+              state=up
+              headline="Site is UP — the probes could not reach it, but this fourth machine just fetched a complete feed, so their networks were at fault and not the site."
+              evidence="${evidence}- **referee** — fetched a complete feed ($(wc -c < /tmp/ref) bytes) from the deciding runner, so the site is serving"$'\n'
+              echo "referee OVERRULES the probes: the site served me a complete feed"
+            else
+              rerr=$(tr -d '\r' < /tmp/referr 2>/dev/null | tail -1 | head -c 160)
+              evidence="${evidence}- **referee** — could not reach it either (rc=$rrc HTTP $rcode)${rerr:+: $rerr}"$'\n'
+              headline="$headline A fourth machine, checked separately, could not reach it either."
+              echo "referee agrees: rc=$rrc code=$rcode $rerr"
+            fi
+          fi
+
           {
             echo "## $headline"
             echo
