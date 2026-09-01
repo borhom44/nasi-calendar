@@ -61,8 +61,17 @@ jobs:
             [ "$fcode" = "200" ] || fail="$fail feed=HTTP$fcode"
             head=$(head -c 15 /tmp/f 2>/dev/null)
             [ "$head" = "BEGIN:VCALENDAR" ] || fail="$fail feed-not-icalendar"
-            size=$(wc -c < /tmp/f 2>/dev/null || echo 0)
-            [ "$size" -ge 1000000 ] || fail="$fail feed-size=${size}B"
+            # NOT a byte floor. This was `-ge 1000000`, written when the feed
+            # was 2.5 MB, and it broke the moment the feed was simplified to one
+            # entry per day (700 KB) -- 57 consecutive false failures and ~50
+            # emails before anyone noticed the site was fine. A size in bytes is
+            # a proxy for "not truncated", so check that directly instead: a
+            # complete calendar ENDS with END:VCALENDAR, and a real one has
+            # events in it. Both survive any future change to how verbose an
+            # entry is.
+            tail -c 200 /tmp/f | grep -q "END:VCALENDAR" || fail="$fail feed-truncated"
+            events=$(grep -c "^BEGIN:VEVENT" /tmp/f 2>/dev/null || echo 0)
+            [ "$events" -ge 1000 ] || fail="$fail feed-only-${events}-events"
 
             # 3. certificate. certbot renews at 30 days left, so under 10 means
             #    renewal has been failing quietly for weeks.
@@ -106,8 +115,14 @@ jobs:
           # one open issue per outage, not one per run
           existing=$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
-            echo "issue #$existing is already open; adding a note"
-            gh issue comment "$existing" --body "Still down at $(date -u +%FT%TZ) — \`$REASON\`"
+            # Deliberately silent. This used to comment every run and fail the
+            # job every run: at one run per 10 minutes that was 53 comments and
+            # ~50 emails for a SINGLE incident, which trains him to ignore the
+            # alert -- the opposite of the point. The open issue is the standing
+            # signal; one notification per outage is the whole job. Exit 0 so
+            # GitHub does not send a failure mail for a fault already reported.
+            echo "issue #$existing is already open for this outage; staying quiet"
+            exit 0
           else
             gh label create uptime --color B60205 --description "Automated uptime check" 2>/dev/null || true
             gh issue create --label uptime \
