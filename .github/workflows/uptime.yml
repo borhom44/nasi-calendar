@@ -111,9 +111,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REASON: ${{ steps.probe.outputs.reason }}
         run: |
-          set -euo pipefail
+          # Not `set -e`: if gh fails here the outage is still real, and the
+          # failing job is itself the alert. Losing the `exit 1` below to a
+          # bookkeeping error would turn a genuine outage into silence.
+          set -uo pipefail
           # one open issue per outage, not one per run
-          existing=$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')
+          existing=$(gh issue list --label uptime --state open --limit 1 \
+                       --json number --jq '.[0].number // empty' 2>/dev/null || true)
           if [ -n "$existing" ]; then
             # Deliberately silent. This used to comment every run and fail the
             # job every run: at one run per 10 minutes that was 53 comments and
@@ -127,7 +131,8 @@ jobs:
             gh label create uptime --color B60205 --description "Automated uptime check" 2>/dev/null || true
             gh issue create --label uptime \
               --title "Site is down: $(date -u +%F\ %H:%M) UTC" \
-              --body "$(printf 'The external uptime check could not reach the live calendar.\n\n**Failing:** `%s`\n\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$REASON" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")"
+              --body "$(printf 'The external uptime check could not reach the live calendar.\n\n**Failing:** `%s`\n\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$REASON" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")" \
+              || echo "could not open an issue; the failing job is still the alert"
           fi
           exit 1
 
@@ -136,12 +141,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          existing=$(gh issue list --label uptime --state open --limit 1 --json number --jq '.[0].number // empty')
+          # NOT `set -e`, and this is the bug that cried wolf the second time.
+          # The probe has just confirmed the site is healthy, so anything that
+          # goes wrong in here is bookkeeping, not an outage -- but
+          # `gh issue list --label uptime` errors when that label does not
+          # exist, and under `set -e` that failed the job on every single run
+          # while the site was fine. A monitor whose CLEANUP path can raise a
+          # false alarm is worse than no monitor, because the alarm is
+          # indistinguishable from the real thing.
+          set -uo pipefail
+          existing=$(gh issue list --label uptime --state open --limit 1 \
+                       --json number --jq '.[0].number // empty' 2>/dev/null || true)
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Back up at $(date -u +%FT%TZ). Closing."
-            gh issue close "$existing"
+            gh issue comment "$existing" --body "Back up at $(date -u +%FT%TZ). Closing." || true
+            gh issue close "$existing" || true
             echo "closed #$existing"
           else
             echo "up, nothing to close"
           fi
+          exit 0
