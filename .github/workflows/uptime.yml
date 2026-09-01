@@ -19,7 +19,19 @@ name: uptime
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Every 30 minutes, not 10. On 1 Sep the runner failed to reach the VPS
+    # twice in an hour for ~5 minutes at a stretch, while the box itself sat at
+    # 11h uptime, zero restarts, answering in 160ms from two other networks.
+    # That is a routing problem between Azure and Hostinger, and it reaches no
+    # actual subscriber -- but at one run per 10 minutes it was going to page
+    # him several times a day about a site that was never down.
+    #
+    # So: check less often, and tolerate far more within one check. A real
+    # outage is still caught within ~45 min worst case (30 min to the next run
+    # plus 15 min of retrying), which is ample for a feed that calendar clients
+    # refetch every 12 hours. A five-minute partition now passes unnoticed,
+    # which is the correct outcome for something no reader can perceive.
+    - cron: "*/30 * * * *"
   workflow_dispatch:        # so you can run it by hand from the Actions tab
 
 permissions:
@@ -51,7 +63,7 @@ jobs:
           FEED="$BASE/data/nasi-cairo-full-5y.ics"
 
           fail=""
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             fail=""
             # Created empty first, every attempt: curl does not write these at
             # all on a connection failure, and an absent file is what turned an
@@ -126,11 +138,11 @@ jobs:
             fi
             echo "attempt $attempt failed:$fail"
             # a single blip on GitHub's side must not raise an issue
-            # 30s, not 20: the failure that started this was a connection
-            # timeout from the runner while the site answered in 63 ms from a
-            # different network, so the tolerance needs to cover a transient
-            # path problem between Azure and Hostinger, not just a slow reply.
-            [ "$attempt" -lt 3 ] && sleep 30
+            # 5 attempts x (20 + 45 + 20)s of timeouts, spaced 120s apart, is
+            # just over 15 minutes of continuous unreachability before this
+            # calls the site down. Sized deliberately against the observed
+            # ~5-minute partitions rather than guessed.
+            [ "$attempt" -lt 5 ] && sleep 120
           done
 
           if [ -n "$fail" ]; then
