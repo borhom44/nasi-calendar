@@ -152,8 +152,12 @@ curl -s -o /dev/null -w "  feed: %{http_code} %{size_download} bytes\n" \
   https://nasi.ibrahimabdelrahim.cloud/data/nasi-cairo-full-5y.ics
 ```
 
-If step 4 prints `HTTP/2 200` and a feed of about 2.5 MB, the box is ready and
-the domain still points at GitHub Pages. Nothing is live yet.
+If step 4 prints `HTTP/2 200` and a feed of roughly 700 KB, the box is ready.
+
+That figure was "about 2.5 MB" until the feeds were simplified to one entry per
+day. Left stale it would have had whoever re-ran this reading a healthy deploy
+as a broken one — which is exactly the mistake that had the uptime monitor
+crying wolf for ten hours, in prose instead of code.
 
 ---
 

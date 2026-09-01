@@ -159,7 +159,7 @@ Measured, with the feed server stopped outright: detected the 502, restarted
 `nasi-feeds`, recovered — about 9 seconds, and zero nginx reloads.
 
 `https://nasi.ibrahimabdelrahim.cloud/healthz` returns `ok` in three bytes, for
-an external uptime monitor that should not pull 2.5 MB of calendar every few
+an external uptime monitor that should not pull a whole calendar every few
 minutes.
 
 **The external monitor is `.github/workflows/uptime.yml`.** A check running on
