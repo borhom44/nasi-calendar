@@ -46,7 +46,8 @@ jobs:
           # mode available to it -- it looked identical to a broken workflow.
           set -uo pipefail
           set +e
-          BASE=https://nasi.ibrahimabdelrahim.cloud
+          HOST=nasi.ibrahimabdelrahim.cloud
+          BASE="https://$HOST"
           FEED="$BASE/data/nasi-cairo-full-5y.ics"
 
           fail=""
@@ -71,7 +72,10 @@ jobs:
             #    generator that answers 200 with the wrong body is exactly the
             #    failure that would otherwise go unnoticed, because subscribers
             #    simply stop getting updates and nothing says so.
-            fcode=$(curl -sS -m 90 -o /tmp/f -w '%{http_code}' "$FEED" 2>/dev/null)
+            # 45s, not 90: the feed answers in well under a second, and
+            # three attempts at 90 plus the sleeps did not comfortably fit the
+            # ten-minute schedule once anything went slow.
+            fcode=$(curl -sS -m 45 -o /tmp/f -w '%{http_code}' "$FEED" 2>/dev/null)
             fcode=${fcode:-000}
             [ "$fcode" = "200" ] || fail="$fail feed=HTTP$fcode"
             head=$(head -c 15 /tmp/f 2>/dev/null)
@@ -91,9 +95,14 @@ jobs:
 
             # 3. certificate. certbot renews at 30 days left, so under 10 means
             #    renewal has been failing quietly for weeks.
-            end=$(echo | openssl s_client -connect nasi.ibrahimabdelrahim.cloud:443 \
-                    -servername nasi.ibrahimabdelrahim.cloud 2>/dev/null \
-                  | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+            # `timeout 20`, because this was the ONE command here with no
+            # bound on it. On 1 Sep a probe ran for 13m 14s against a schedule
+            # that fires every 10 minutes -- runs queued behind each other and
+            # the whole check fell behind. curl was always bounded; openssl
+            # was not, and a hung TLS handshake waits forever.
+            cert=$(timeout 20 openssl s_client -connect "$HOST:443" \
+                     -servername "$HOST" </dev/null 2>/dev/null)
+            end=$(printf '%s' "$cert" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
             if [ -n "$end" ]; then
               left=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
               echo "certificate: $left days left"
@@ -136,7 +145,8 @@ jobs:
           # bookkeeping error would turn a genuine outage into silence.
           set -uo pipefail
           # one open issue per outage, not one per run
-          existing=$(gh issue list --label uptime --state open --limit 1 \
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+                       --label uptime --state open --limit 1 \
                        --json number --jq '.[0].number // empty' 2>/dev/null || true)
           if [ -n "$existing" ]; then
             # Deliberately silent. This used to comment every run and fail the
@@ -148,8 +158,9 @@ jobs:
             echo "issue #$existing is already open for this outage; staying quiet"
             exit 0
           else
-            gh label create uptime --color B60205 --description "Automated uptime check" 2>/dev/null || true
-            gh issue create --label uptime \
+            gh label create uptime --repo "$GITHUB_REPOSITORY" \
+              --color B60205 --description "Automated uptime check" 2>/dev/null || true
+            gh issue create --repo "$GITHUB_REPOSITORY" --label uptime \
               --title "Site is down: $(date -u +%F\ %H:%M) UTC" \
               --body "$(printf 'The external uptime check could not reach the live calendar.\n\n**Failing:** `%s`\n\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$REASON" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")" \
               || echo "could not open an issue; the failing job is still the alert"
@@ -170,11 +181,13 @@ jobs:
           # false alarm is worse than no monitor, because the alarm is
           # indistinguishable from the real thing.
           set -uo pipefail
-          existing=$(gh issue list --label uptime --state open --limit 1 \
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+                       --label uptime --state open --limit 1 \
                        --json number --jq '.[0].number // empty' 2>/dev/null || true)
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "Back up at $(date -u +%FT%TZ). Closing." || true
-            gh issue close "$existing" || true
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
+              --body "Back up at $(date -u +%FT%TZ). Closing." || true
+            gh issue close "$existing" --repo "$GITHUB_REPOSITORY" || true
             echo "closed #$existing"
           else
             echo "up, nothing to close"
