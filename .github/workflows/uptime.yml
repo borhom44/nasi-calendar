@@ -5,32 +5,60 @@
 # a check running on the machine it is checking reports nothing when the machine
 # is off. This runs on GitHub's infrastructure instead, so it survives the VPS.
 #
-# When this job fails, GitHub emails the repository owner and opens an issue.
-# The issue is what makes an outage impossible to scroll past, and it closes
-# itself when the site comes back.
+# ---------------------------------------------------------------------------
+# WHY THIS FILE WAS REWRITTEN (1 Sep 2026)
 #
-# Notes on the schedule: GitHub's cron is best-effort and can be minutes late
-# under load, so treat "every 10 minutes" as approximate -- it is a safety net,
-# not a stopwatch. GitHub also disables scheduled workflows after 60 days with
-# no repository activity, and emails a warning first; if that happens, re-enable
-# it from the Actions tab.
+# It raised four alarms in one afternoon. All four were false. The site served
+# every request throughout, from three other networks, with the box at 11h
+# uptime and zero restarts. The tell is in the issues it opened and closed
+# itself:
+#
+#     #1  16:28 -> 16:46   18 min
+#     #2  17:25 -> 17:32    7 min
+#     #3  17:56 -> 18:02    6 min
+#     #4  19:49 -> 20:07   18 min
+#
+# Every single one cleared on the very next scheduled run. Not one persisted
+# across two runs. A real outage does not politely end four times in a row
+# exactly when a fresh VM picks up the job -- but a runner whose own network is
+# broken looks precisely like this, because the next run gets a different VM.
+#
+# The old design could not tell those two apart, and worse, could not even
+# describe what it saw. Its verdict was:
+#
+#     healthz=HTTP000 healthz-body='' feed=HTTP000 feed-not-icalendar
+#     feed-truncated feed-only-0-events cert-unreadable
+#
+# which reads like the site is catastrophically broken. In fact it is one fact
+# stated seven times: the connection never opened. curl's `2>/dev/null` threw
+# away the one string that said whether that was DNS, a refused connection, a
+# timeout or TLS -- so four failures produced zero usable evidence and cost a
+# whole day of guessing. Everything below follows from that.
+#
+# Three rules now:
+#
+#   1. NEVER discard the reason. curl's exit code and stderr are the diagnosis.
+#      A body check is not allowed to run on a response that never arrived.
+#   2. A single vantage point may not declare an outage. It can only report
+#      "I could not reach it", which is a statement about the prober. Three
+#      independent VMs must agree, and any VM whose own network is broken is
+#      recused rather than counted.
+#   3. The job always exits 0. The ISSUE is the alert. Exiting non-zero sent a
+#      second "Run failed" email that fires for workflow bugs too -- which is
+#      what almost every mail on 1 Sep actually was.
+# ---------------------------------------------------------------------------
+#
+# GitHub disables scheduled workflows after 60 days with no repository
+# activity, and emails a warning first; re-enable it from the Actions tab.
 
 name: uptime
 
 on:
   schedule:
-    # Every 30 minutes, not 10. On 1 Sep the runner failed to reach the VPS
-    # twice in an hour for ~5 minutes at a stretch, while the box itself sat at
-    # 11h uptime, zero restarts, answering in 160ms from two other networks.
-    # That is a routing problem between Azure and Hostinger, and it reaches no
-    # actual subscriber -- but at one run per 10 minutes it was going to page
-    # him several times a day about a site that was never down.
-    #
-    # So: check less often, and tolerate far more within one check. A real
-    # outage is still caught within ~45 min worst case (30 min to the next run
-    # plus 15 min of retrying), which is ample for a feed that calendar clients
-    # refetch every 12 hours. A five-minute partition now passes unnoticed,
-    # which is the correct outcome for something no reader can perceive.
+    # Every 30 minutes. This is a safety net, not a stopwatch: the feed is an
+    # .ics that calendar clients refetch every 12-24 hours, so a fifteen-minute
+    # blip is imperceptible to every actual subscriber. GitHub's cron is
+    # best-effort and can drift by minutes under load.
     - cron: "*/30 * * * *"
   workflow_dispatch:        # so you can run it by hand from the Actions tab
 
@@ -43,174 +71,335 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ==========================================================================
+  # Three independent probes, on three separate runner VMs.
+  #
+  # Each one reports ONLY what it personally observed, and each one first
+  # proves its own network works before it is allowed an opinion about anyone
+  # else's. They do not talk to each other; the `decide` job below counts the
+  # votes.
+  # ==========================================================================
   probe:
+    name: probe ${{ matrix.vantage }}
     runs-on: ubuntu-latest
+    # The last hole through which a "Run failed" email could still escape. A
+    # probe job that errors for its own reasons -- a runner dying, an action
+    # being unavailable -- would otherwise make the whole run conclude
+    # `failure`, and GitHub mails that exactly as loudly as a real outage.
+    # With this, a broken vantage simply uploads no verdict and does not vote,
+    # which `decide` already handles as one fewer voter.
+    continue-on-error: true
+    strategy:
+      fail-fast: false      # one vantage failing must not cancel the others
+      matrix:
+        vantage: [1, 2, 3]
     steps:
       - name: Probe the live site
-        id: probe
         run: |
           # GitHub runs every `run:` block with `bash -eo pipefail`, so -e is
-          # already ON and `set -uo pipefail` below does NOT remove it. That
-          # killed this step on 1 Sep: when curl could not reach the site it
-          # wrote no output file, reading that missing file was a shell error,
-          # and -e ended the step before it could report anything. A monitor
-          # dying on the one condition it exists to detect is the worst failure
-          # mode available to it -- it looked identical to a broken workflow.
+          # already ON and `set -uo pipefail` does NOT remove it. That killed
+          # this step once: curl wrote no output file when it could not
+          # connect, reading the missing file was an error, and -e ended the
+          # step before it could report anything. A monitor that dies on the
+          # one condition it exists to detect is the worst failure available
+          # to it, because it looks identical to a broken workflow.
           set -uo pipefail
           set +e
+
           HOST=nasi.ibrahimabdelrahim.cloud
           BASE="https://$HOST"
           FEED="$BASE/data/nasi-cairo-full-5y.ics"
+          # A third party with no relationship to the VPS. If THIS is
+          # unreachable, the runner's own egress is broken and nothing it says
+          # about the calendar means anything.
+          CONTROL="https://api.github.com/"
 
-          fail=""
-          for attempt in 1 2 3 4 5; do
-            fail=""
-            # Created empty first, every attempt: curl does not write these at
-            # all on a connection failure, and an absent file is what turned an
-            # unreachable site into a dead step rather than an alert.
-            : > /tmp/h
-            : > /tmp/f
+          verdict=up          # up | down | recused
+          class=ok
+          detail=""
 
-            # 1. liveness -- three bytes, this is the cheap one
-            code=$(curl -sS -m 20 -o /tmp/h -w '%{http_code}' "$BASE/healthz" 2>/dev/null)
-            code=${code:-000}
-            # capped: a wrong response can be an entire HTML error page, and
-            # this string goes into $GITHUB_OUTPUT, which is key=value parsed
-            body=$(tr -d '[:space:]' < /tmp/h 2>/dev/null | head -c 40)
-            [ "$code" = "200" ] || fail="$fail healthz=HTTP$code"
-            [ "$body" = "ok" ]  || fail="$fail healthz-body='$body'"
+          note() { detail="${detail}${detail:+; }$1"; }
 
-            # 2. a real feed. /healthz only proves the process is listening; a
-            #    generator that answers 200 with the wrong body is exactly the
-            #    failure that would otherwise go unnoticed, because subscribers
-            #    simply stop getting updates and nothing says so.
-            # 45s, not 90: the feed answers in well under a second, and
-            # three attempts at 90 plus the sleeps did not comfortably fit the
-            # ten-minute schedule once anything went slow.
-            fcode=$(curl -sS -m 45 -o /tmp/f -w '%{http_code}' "$FEED" 2>/dev/null)
-            fcode=${fcode:-000}
-            [ "$fcode" = "200" ] || fail="$fail feed=HTTP$fcode"
-            head=$(head -c 15 /tmp/f 2>/dev/null)
-            [ "$head" = "BEGIN:VCALENDAR" ] || fail="$fail feed-not-icalendar"
-            # NOT a byte floor. This was `-ge 1000000`, written when the feed
-            # was 2.5 MB, and it broke the moment the feed was simplified to one
-            # entry per day (700 KB) -- 57 consecutive false failures and ~50
-            # emails before anyone noticed the site was fine. A size in bytes is
-            # a proxy for "not truncated", so check that directly instead: a
-            # complete calendar ENDS with END:VCALENDAR, and a real one has
-            # events in it. Both survive any future change to how verbose an
-            # entry is.
-            tail -c 200 /tmp/f | grep -q "END:VCALENDAR" || fail="$fail feed-truncated"
-            events=$(grep -c "^BEGIN:VEVENT" /tmp/f 2>/dev/null)
-            events=${events:-0}
-            [ "$events" -ge 1000 ] || fail="$fail feed-only-${events}-events"
+          # curl's exit code is the diagnosis the old version threw away.
+          why() {
+            case "$1" in
+              0)  echo "ok" ;;
+              6)  echo "dns" ;;             # could not resolve the name
+              7)  echo "connect" ;;         # refused / no route
+              28) echo "timeout" ;;
+              35|51|58|59|60|77|83) echo "tls" ;;
+              56) echo "recv" ;;            # connection reset mid-transfer
+              *)  echo "curl$1" ;;
+            esac
+          }
 
-            # 3. certificate. certbot renews at 30 days left, so under 10 means
-            #    renewal has been failing quietly for weeks.
-            # `timeout 20`, because this was the ONE command here with no
-            # bound on it. On 1 Sep a probe ran for 13m 14s against a schedule
-            # that fires every 10 minutes -- runs queued behind each other and
-            # the whole check fell behind. curl was always bounded; openssl
-            # was not, and a hung TLS handshake waits forever.
-            cert=$(timeout 20 openssl s_client -connect "$HOST:443" \
-                     -servername "$HOST" </dev/null 2>/dev/null)
-            end=$(printf '%s' "$cert" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
-            if [ -n "$end" ]; then
-              left=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
-              echo "certificate: $left days left"
-              [ "$left" -ge 10 ] || fail="$fail cert-expires-in-${left}d"
-            elif [ "$code" = "200" ] && [ "$fcode" = "200" ]; then
-              # Unreadable, but the site and the feed both answered over HTTPS
-              # in the same breath -- so TLS demonstrably works and this is a
-              # failed MEASUREMENT, not a bad certificate. Reporting it as an
-              # outage is how a flaky s_client from the runner turns into an
-              # alarm about a site that is fine, which is precisely the failure
-              # mode this workflow spent the morning demonstrating.
-              echo "certificate: could not read it, but HTTPS served both"                    "checks, so TLS is working -- not treating this as down"
+          # Sets RC, CODE and ERR. ERR is curl's own words, capped, because it
+          # ends up in an issue body and a job summary.
+          fetch() {   # $1=url  $2=body-file  $3=timeout  [$4..]=extra curl args
+            local url=$1 out=$2 tmo=$3; shift 3
+            : > "$out"
+            CODE=$(curl -sS -m "$tmo" -o "$out" -w '%{http_code}' "$@" "$url" 2>/tmp/curlerr)
+            RC=$?
+            CODE=${CODE:-000}
+            ERR=$(tr -d '\r' < /tmp/curlerr | tail -1 | head -c 160)
+          }
+
+          echo "::group::vantage ${{ matrix.vantage }}"
+
+          # ---- 0. Does this runner's network work at all? ------------------
+          # Asked FIRST and answered honestly. A VM with broken egress must
+          # recuse itself, not convict the site.
+          fetch "$CONTROL" /tmp/ctl 20
+          if [ "$RC" -ne 0 ]; then
+            verdict=recused
+            class="runner-network"
+            note "control $CONTROL failed: $(why $RC) rc=$RC ${ERR:+($ERR)}"
+            note "this runner cannot reach the wider internet, so it has no opinion about the calendar"
+            echo "RECUSED: $detail"
+          else
+            echo "control ok (HTTP $CODE) -- this runner's network is fine"
+          fi
+
+          if [ "$verdict" != "recused" ]; then
+            # ---- 1. liveness ----------------------------------------------
+            fetch "$BASE/healthz" /tmp/h 20
+            hrc=$RC; hcode=$CODE; herr=$ERR
+            if [ "$hrc" -ne 0 ]; then
+              verdict=down; class=$(why $hrc)
+              note "healthz: $(why $hrc) ${herr:+($herr)}"
+            elif [ "$hcode" != "200" ]; then
+              verdict=down; class=http
+              note "healthz: HTTP $hcode"
             else
-              # nothing else worked either, so this is real
-              fail="$fail cert-unreadable"
+              # Only NOW is looking at the body meaningful. The old version
+              # graded a file that was never written and reported the empty
+              # string as a wrong answer.
+              hbody=$(tr -d '[:space:]' < /tmp/h | head -c 40)
+              if [ "$hbody" != "ok" ]; then
+                verdict=down; class=content
+                note "healthz answered 200 but said '$hbody', not 'ok'"
+              fi
             fi
 
-            if [ -z "$fail" ]; then
-              echo "attempt $attempt: all checks passed"
-              break
+            # ---- 2. a real feed -------------------------------------------
+            # /healthz only proves a process is listening. A generator that
+            # answers 200 with the wrong body is exactly the failure that
+            # would otherwise go unnoticed: subscribers quietly stop getting
+            # updates and nothing says so.
+            fetch "$FEED" /tmp/f 45
+            frc=$RC; fcode=$CODE; ferr=$ERR
+            if [ "$frc" -ne 0 ]; then
+              verdict=down; [ "$class" = ok ] && class=$(why $frc)
+              note "feed: $(why $frc) ${ferr:+($ferr)}"
+            elif [ "$fcode" != "200" ]; then
+              verdict=down; [ "$class" = ok ] && class=http
+              note "feed: HTTP $fcode"
+            else
+              # NOT a byte floor. It was `-ge 1000000`, written when the feed
+              # was 2.5 MB, and it broke the moment the feed was simplified to
+              # one entry per day (700 KB): 57 consecutive false failures and
+              # ~50 emails before anyone noticed the site was fine. Size is a
+              # proxy for "not truncated", so check that directly. A complete
+              # calendar ENDS with END:VCALENDAR and has events in it -- both
+              # survive any future change to how verbose an entry is. The
+              # floor is 100, not 1826, for the same reason: it must prove
+              # "this is a real calendar", not "this is today's calendar".
+              head=$(head -c 15 /tmp/f)
+              events=$(grep -c '^BEGIN:VEVENT' /tmp/f); events=${events:-0}
+              if [ "$head" != "BEGIN:VCALENDAR" ]; then
+                verdict=down; [ "$class" = ok ] && class=content
+                note "feed does not begin with BEGIN:VCALENDAR"
+              elif ! tail -c 200 /tmp/f | grep -q 'END:VCALENDAR'; then
+                verdict=down; [ "$class" = ok ] && class=content
+                note "feed is truncated -- no END:VCALENDAR"
+              elif [ "$events" -lt 100 ]; then
+                verdict=down; [ "$class" = ok ] && class=content
+                note "feed has only $events events"
+              else
+                echo "feed ok: $events events, $(wc -c < /tmp/f) bytes"
+              fi
             fi
-            echo "attempt $attempt failed:$fail"
-            # a single blip on GitHub's side must not raise an issue
-            # 5 attempts x (20 + 45 + 20)s of timeouts, spaced 120s apart, is
-            # just over 15 minutes of continuous unreachability before this
-            # calls the site down. Sized deliberately against the observed
-            # ~5-minute partitions rather than guessed.
-            [ "$attempt" -lt 5 ] && sleep 120
+
+            # ---- 3. was it the NAME or the SITE? --------------------------
+            # If we could not connect, ask an independent resolver over DoH
+            # and try the address directly, keeping SNI and full certificate
+            # validation. If that works, the site is up and this runner's
+            # resolver or route was the whole problem -- which is a fact about
+            # the prober, so it recuses itself rather than raising an alarm.
+            case "$class" in
+              dns|connect|timeout)
+                ip=$(curl -sS -m 15 -H 'accept: application/dns-json' \
+                       "https://cloudflare-dns.com/dns-query?name=$HOST&type=A" 2>/dev/null \
+                     | grep -oP '"data":"\K[0-9.]+' | head -1)
+                if [ -n "$ip" ]; then
+                  note "an independent resolver says $HOST is $ip"
+                  fetch "$BASE/healthz" /tmp/b 25 --resolve "$HOST:443:$ip"
+                  if [ "$RC" -eq 0 ] && [ "$CODE" = "200" ]; then
+                    verdict=recused
+                    class="local-resolver"
+                    note "connecting straight to $ip served healthz 200, so the site is UP and this runner's DNS or route was the fault"
+                  else
+                    note "connecting straight to $ip also failed: $(why $RC) ${ERR:+($ERR)}"
+                  fi
+                else
+                  note "could not get an independent answer for $HOST either"
+                fi
+                ;;
+            esac
+
+            # ---- 4. certificate -------------------------------------------
+            # Only meaningful if TLS demonstrably works. certbot renews at 30
+            # days left, so under 10 means renewal has been failing quietly
+            # for weeks. Skipped entirely when we never connected, because an
+            # unreadable certificate on an unreachable host is not a second
+            # piece of evidence -- it is the same one, restated.
+            if [ "$verdict" = "up" ]; then
+              end=$(timeout 20 openssl s_client -connect "$HOST:443" \
+                      -servername "$HOST" </dev/null 2>/dev/null \
+                    | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+              if [ -n "$end" ]; then
+                left=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+                echo "certificate: $left days left"
+                if [ "$left" -lt 10 ]; then
+                  verdict=down; class=cert
+                  note "certificate expires in $left days and renewal is evidently stuck"
+                fi
+              else
+                # HTTPS just served two requests, so TLS works and this is a
+                # failed MEASUREMENT, not a bad certificate.
+                echo "certificate: unreadable, but HTTPS served both checks -- not an outage"
+              fi
+            fi
+          fi
+
+          echo "::endgroup::"
+          echo "VERDICT: $verdict ($class) $detail"
+
+          mkdir -p verdicts
+          {
+            echo "$verdict"
+            echo "$class"
+            echo "$detail"
+          } > "verdicts/vantage-${{ matrix.vantage }}.txt"
+
+      - name: Record this vantage's verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vantage-${{ matrix.vantage }}
+          path: verdicts/
+          retention-days: 7
+
+  # ==========================================================================
+  # Count the votes.
+  #
+  # A vantage that recused itself does not vote -- its network was broken, so
+  # its silence is not evidence either way. An alarm needs at least two
+  # remaining vantages and needs them UNANIMOUS. If any VM anywhere fetched a
+  # healthy feed, the site is up and that settles it: one machine succeeding
+  # proves the site serves, while one machine failing proves only that one
+  # machine failed.
+  # ==========================================================================
+  decide:
+    needs: probe
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect every vantage's verdict
+        # Tolerant on purpose. If no vantage managed to upload anything, this
+        # step erroring would fail the job and send the very email this
+        # rewrite exists to stop. Zero verdicts is handled below as
+        # 'inconclusive', which is exactly what it is.
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          path: verdicts
+          pattern: vantage-*
+          merge-multiple: true
+
+      - name: Decide, and alert only if the evidence supports it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Deliberately NOT `set -e`, and this step NEVER exits non-zero.
+          # A failing job sends its own "Run failed" email, which fires for
+          # workflow bugs exactly as loudly as for outages -- that is what
+          # produced almost every alarming mail on 1 Sep. The issue below is
+          # the alert. If this bookkeeping breaks, that is a bug to fix, not
+          # an outage to announce.
+          set -uo pipefail
+          set +e
+
+          up=0; down=0; recused=0; evidence=""; dclass=""
+          for f in verdicts/vantage-*.txt; do
+            [ -f "$f" ] || continue
+            v=$(sed -n 1p "$f"); c=$(sed -n 2p "$f"); d=$(sed -n 3p "$f")
+            who=$(basename "$f" .txt)
+            case "$v" in
+              up)      up=$((up+1)) ;;
+              down)    down=$((down+1)); dclass=${dclass:-$c} ;;
+              recused) recused=$((recused+1)) ;;
+              *)       recused=$((recused+1)); v=recused; c=no-verdict ;;
+            esac
+            echo "$who: $v ($c) $d"
+            evidence="${evidence}- **${who}** — ${v} (${c})${d:+: ${d}}"$'\n'
           done
 
-          if [ -n "$fail" ]; then
-            # trim the leading space, and cap the whole thing -- $GITHUB_OUTPUT
-            # is line-based and an unbounded value would break it
-            reason=$(echo "$fail" | sed 's/^ *//' | head -c 300)
-            echo "reason=$reason" >> "$GITHUB_OUTPUT"
-            echo "status=down" >> "$GITHUB_OUTPUT"
+          voters=$((up + down))
+          echo "tally: up=$up down=$down recused=$recused (voters=$voters)"
+
+          # ---- the decision -----------------------------------------------
+          if [ "$up" -gt 0 ]; then
+            state=up
+            headline="Site is UP — $up of $voters vantages fetched a healthy feed."
+          elif [ "$voters" -ge 2 ] && [ "$down" -eq "$voters" ]; then
+            state=down
+            headline="Site is DOWN — all $voters independent vantages agree."
           else
-            echo "status=up" >> "$GITHUB_OUTPUT"
+            # One lone vantage, or none. Not enough to convict.
+            state=inconclusive
+            headline="Inconclusive — only $voters vantage(s) reached a verdict ($recused recused for broken runner networking). Not raising an alarm on that."
           fi
 
-      - name: Open an issue if it is down
-        if: steps.probe.outputs.status == 'down'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REASON: ${{ steps.probe.outputs.reason }}
-        run: |
-          # Not `set -e`: if gh fails here the outage is still real, and the
-          # failing job is itself the alert. Losing the `exit 1` below to a
-          # bookkeeping error would turn a genuine outage into silence.
-          set -uo pipefail
-          # one open issue per outage, not one per run
+          {
+            echo "## $headline"
+            echo
+            echo "$evidence"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$headline"
+
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
                        --label uptime --state open --limit 1 \
                        --json number --jq '.[0].number // empty' 2>/dev/null || true)
-          if [ -n "$existing" ]; then
-            # Deliberately silent. This used to comment every run and fail the
-            # job every run: at one run per 10 minutes that was 53 comments and
-            # ~50 emails for a SINGLE incident, which trains him to ignore the
-            # alert -- the opposite of the point. The open issue is the standing
-            # signal; one notification per outage is the whole job. Exit 0 so
-            # GitHub does not send a failure mail for a fault already reported.
-            echo "issue #$existing is already open for this outage; staying quiet"
-            exit 0
-          else
-            gh label create uptime --repo "$GITHUB_REPOSITORY" \
-              --color B60205 --description "Automated uptime check" 2>/dev/null || true
-            gh issue create --repo "$GITHUB_REPOSITORY" --label uptime \
-              --title "Site is down: $(date -u +%F\ %H:%M) UTC" \
-              --body "$(printf 'The external uptime check could not reach the live calendar.\n\n**Failing:** `%s`\n\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$REASON" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")" \
-              || echo "could not open an issue; the failing job is still the alert"
-          fi
-          exit 1
 
-      - name: Close the issue if it recovered
-        if: steps.probe.outputs.status == 'up'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # NOT `set -e`, and this is the bug that cried wolf the second time.
-          # The probe has just confirmed the site is healthy, so anything that
-          # goes wrong in here is bookkeeping, not an outage -- but
-          # `gh issue list --label uptime` errors when that label does not
-          # exist, and under `set -e` that failed the job on every single run
-          # while the site was fine. A monitor whose CLEANUP path can raise a
-          # false alarm is worse than no monitor, because the alarm is
-          # indistinguishable from the real thing.
-          set -uo pipefail
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" \
-                       --label uptime --state open --limit 1 \
-                       --json number --jq '.[0].number // empty' 2>/dev/null || true)
-          if [ -n "$existing" ]; then
+          if [ "$state" = "down" ]; then
+            if [ -n "$existing" ]; then
+              # Deliberately silent. This used to comment on every run: at one
+              # run per 10 minutes that was 53 comments and ~50 emails for a
+              # SINGLE incident, which trains him to ignore the alert -- the
+              # exact opposite of the point. The open issue is the standing
+              # signal; one notification per outage is the whole job.
+              echo "issue #$existing is already open for this outage; staying quiet"
+            else
+              gh label create uptime --repo "$GITHUB_REPOSITORY" \
+                --color B60205 --description "Automated uptime check" 2>/dev/null || true
+              gh issue create --repo "$GITHUB_REPOSITORY" --label uptime \
+                --title "$(if [ "$dclass" = cert ]; then
+                            echo "Certificate is close to expiry: $(date -u +%F\ %H:%M) UTC"
+                          else
+                            echo "Site is down: $(date -u +%F\ %H:%M) UTC"
+                          fi)" \
+                --body "$(printf 'All independent vantage points failed to reach the live calendar.\n\n%s\n- Site: https://nasi.ibrahimabdelrahim.cloud/\n- Liveness: https://nasi.ibrahimabdelrahim.cloud/healthz\n\nThe on-box check (`nasi-health.timer`) repairs what it can every 5 minutes. If this issue is open, that did not work — or the box itself is unreachable.\n\nThis issue closes itself when the site responds again.\n\nRun: %s/%s/actions/runs/%s\n' "$evidence" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")" \
+                || echo "could not open an issue"
+            fi
+          elif [ "$state" = "up" ] && [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
               --body "Back up at $(date -u +%FT%TZ). Closing." || true
             gh issue close "$existing" --repo "$GITHUB_REPOSITORY" || true
             echo "closed #$existing"
           else
-            echo "up, nothing to close"
+            echo "nothing to do"
           fi
+
+          # Always. The issue is the alert; the job is just the machinery.
           exit 0
