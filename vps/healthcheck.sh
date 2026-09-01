@@ -24,7 +24,18 @@ set -uo pipefail
 DOMAIN=nasi.ibrahimabdelrahim.cloud
 SITE="https://$DOMAIN/"
 FEED="https://$DOMAIN/data/nasi-cairo-full-5y.ics"
-MIN_BYTES=1000000          # a real feed is ~2.5 MB raw; far under means broken
+MIN_EVENTS=1000            # a real 5-year feed has 1,826 days in it
+# There was a MIN_BYTES=1000000 here, and it was the same mistake as the one in
+# .github/workflows/uptime.yml: a byte floor written when a feed was 2.5 MB,
+# left behind when the feeds were simplified to one entry per day (700 KB). It
+# then declared a healthy feed broken and RESTARTED the server every five
+# minutes, and every restart was a 502 window for whoever was fetching. Worse
+# than the workflow version, which only sent email -- this one was degrading
+# the thing it was supposed to protect.
+#
+# Size was always a proxy for "not truncated". Check that directly instead: a
+# complete calendar ends with END:VCALENDAR and has events in it. Both survive
+# any future change to how verbose an entry is.
 CERT=/etc/letsencrypt/live/$DOMAIN/fullchain.pem
 CERT_WARN_DAYS=14
 STATE_DIR=/var/lib/nasi-health
@@ -61,18 +72,35 @@ check_site() {
 }
 
 check_feed() {
-  local body code size head
+  # Everything is measured from the file BEFORE it is deleted. The first
+  # version of this fix put the new checks after the rm and every run then
+  # reported "feed is truncated" against a file that no longer existed -- which
+  # restarted the server just as reliably as the stale byte floor it replaced.
+  local body code size head tail_ok events
   body=$(mktemp)
   code=$(curl -s -m 60 -o "$body" -w '%{http_code}' "$FEED")
-  size=$(wc -c < "$body")
-  head=$(head -c 15 "$body")
+  size=$(wc -c < "$body" 2>/dev/null || echo 0)
+  head=$(head -c 15 "$body" 2>/dev/null)
+  tail_ok=no
+  tail -c 200 "$body" 2>/dev/null | grep -q "END:VCALENDAR" && tail_ok=yes
+  events=$(grep -c "^BEGIN:VEVENT" "$body" 2>/dev/null)
+  events=${events:-0}
   rm -f "$body"
+
   if [ "$code" != "200" ]; then problems+=("feed returned HTTP $code"); return 1; fi
-  if [ "$size" -lt "$MIN_BYTES" ]; then problems+=("feed is only $size bytes"); return 1; fi
   # a 200 that is not actually a calendar is the failure that would otherwise
   # go unnoticed: subscribers just stop getting updates, silently
-  if [ "$head" != "BEGIN:VCALENDAR" ]; then problems+=("feed is not an iCalendar file"); return 1; fi
+  if [ "$head" != "BEGIN:VCALENDAR" ]; then
+    problems+=("feed is not an iCalendar file"); return 1
+  fi
+  if [ "$tail_ok" != "yes" ]; then
+    problems+=("feed is truncated at $size bytes"); return 1
+  fi
+  if [ "$events" -lt "$MIN_EVENTS" ]; then
+    problems+=("feed has only $events events"); return 1
+  fi
 }
+
 
 check_cert() {
   [ -r "$CERT" ] || { problems+=("certificate missing at $CERT"); return 1; }
