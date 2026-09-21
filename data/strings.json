@@ -581,6 +581,10 @@
       "ar": "· (تاريخ محسوب، خارج جدول الكتاب)",
       "en": "· (computed date, outside the book’s table)"
     },
+    "conv.hijriComputedNote": {
+      "ar": "· (الهجري تقديري، خارج جدول أم القرى الرسمي 1356هـ–1500هـ)",
+      "en": "· (Hijri is estimated, outside the official Umm al-Qura table 1356–1500 AH)"
+    },
     "conv.noSuchDate": {
       "ar": "تاريخ غير موجود في هذا النطاق",
       "en": "No such date in this range"

@@ -149,6 +149,7 @@ const STRINGS = {
   "grid.badgeTitle": {"ar": "اضغط لعرض التفاصيل", "en": "Tap for details"},
   "conv.outOfRange": {"ar": "خارج النطاق المتاح ({from} – {to})", "en": "Outside the supported range ({from} – {to})"},
   "conv.computedNote": {"ar": "· (تاريخ محسوب، خارج جدول الكتاب)", "en": "· (computed date, outside the book’s table)"},
+  "conv.hijriComputedNote": {"ar": "· (الهجري تقديري، خارج جدول أم القرى الرسمي 1356هـ–1500هـ)", "en": "· (Hijri is estimated, outside the official Umm al-Qura table 1356–1500 AH)"},
   "conv.noSuchDate": {"ar": "تاريخ غير موجود في هذا النطاق", "en": "No such date in this range"},
   "moon.newMoonAt": {"ar": "بداية دورة قمرية جديدة – الساعة {time}", "en": "A new lunation begins – {time}"},
   "moon.fullMoonAt": {"ar": "اكتمال القمر (بدر) – الساعة {time}", "en": "Full moon – {time}"},

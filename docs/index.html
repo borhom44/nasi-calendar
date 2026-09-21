@@ -752,11 +752,11 @@
 
 <script src="nasi-months-data.js?v=a8e4a877"></script>
 <script src="nasi-calendar.js?v=bedb056b"></script>
-<script src="hijri.js?v=381a224a"></script>
+<script src="hijri.js?v=d1db0c93"></script>
 <script src="moon-phases-data.js?v=6a91b981"></script>
 <!-- generated from data/cities.json by scripts/build_web.py; solar.js and
      moon-events.js both read the CITIES global it defines -->
-<script src="strings-data.js?v=a8880996"></script>
+<script src="strings-data.js?v=d3799543"></script>
 <script src="cities-data.js?v=1af891a4"></script>
 <script src="moon.js?v=a4abf928"></script>
 <script src="solar.js?v=4961c053"></script>
@@ -926,12 +926,19 @@ function renderRows(s, skip) {
   // the weekday of a date is a fact about that date; it does not move with the
   // reader's chosen start of week, so this stays indexed by getUTCDay()
   const wd = weekdayNames()[new Date(s + "T00:00:00Z").getUTCDay()];
-  const tail = n && n.computed
-    ? "  ·  " + t(nasiHidden ? "conv.computedHidden" : "conv.computedNote", LANG) : "";
+  // Two independent tables, two independent "outside my data" flags: the
+  // Nasi' one (outside the book's 2000-2100 range) and the Hijri one
+  // (outside the real Umm al-Qura table, 1356-1500 AH / 1937-2077 CE).
+  // Either, both, or neither can be true for a given date -- join whichever
+  // apply rather than assuming they move together.
+  const notes = [];
+  if (h.computed) notes.push(t("conv.hijriComputedNote", LANG));
+  if (n && n.computed) notes.push(t(nasiHidden ? "conv.computedHidden" : "conv.computedNote", LANG));
+  const tail = notes.length ? "  ·  " + notes.join("  ·  ") : "";
   box.textContent = (n && !nasiHidden)
     ? `${wd} · ${ddmmyyyy(s)} ${t("era.gregorian", LANG)}  ·  ${h.d} ${hijriMonthNames()[h.m-1]} ${h.y} ${t("era.hijri", LANG)}  ·  ${n.nd} ${nasiMonthLabel(n.nm)} ${n.ny} ${t("era.nasi", LANG)}${tail}`
     : `${wd} · ${ddmmyyyy(s)} ${t("era.gregorian", LANG)}  ·  ${h.d} ${hijriMonthNames()[h.m-1]} ${h.y} ${t("era.hijri", LANG)}${tail}`;
-  box.classList.toggle("computed-note", !!(n && n.computed));
+  box.classList.toggle("computed-note", h.computed || !!(n && n.computed));
 }
 
 /* setDate() also MOVES the grid to that date's month, which is right when the
